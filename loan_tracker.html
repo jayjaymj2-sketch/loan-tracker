@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>คำนวณหนี้บ้าน</title>
+<!-- PWA: ติดตั้งลงโฮมจอได้ -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#16315a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="หนี้บ้าน">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy-900:#0a1628;
+  --navy-800:#10223d;
+  --navy-700:#16315a;
+  --navy-600:#1d3a63;
+  --navy-500:#2a4d7f;
+  --gold-100:#fdf6e3;
+  --gold-300:#e3b94a;
+  --gold-500:#c89730;
+  --gold-600:#a87a1f;
+  --gold-700:#8a6418;
+  --cream:#fffdf7;
+  --paper:#fbf7ee;
+  --white:#ffffff;
+  --green:#3a8a5e;
+  --red:#c0504d;
+  --ink:#1c2333;
+  --ink-soft:#5a6378;
+  --shadow: 0 8px 30px rgba(180,150,80,0.14);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  font-family:'Sarabun', sans-serif;
+  background: linear-gradient(160deg, #fffdf6 0%, #fdf6e3 45%, #faf0d4 100%);
+  min-height:100vh;
+  color:var(--ink);
+  padding:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{
+  max-width:480px;
+  margin:0 auto;
+  padding:24px 18px 60px;
+}
+.header{
+  text-align:center;
+  margin-bottom:22px;
+  position:relative;
+}
+.header .eyebrow{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:11px;
+  letter-spacing:3px;
+  color:var(--gold-600);
+  text-transform:uppercase;
+  margin-bottom:6px;
+}
+.header h1{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:24px;
+  font-weight:600;
+  color:var(--navy-800);
+  letter-spacing:0.5px;
+}
+.header .house-name{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:13px;
+  font-weight:500;
+  color:var(--gold-600);
+  letter-spacing:1px;
+  margin-top:4px;
+}
+.header .gold-line{
+  width:60px;
+  height:2px;
+  background:linear-gradient(90deg, transparent, var(--gold-500), transparent);
+  margin:12px auto 0;
+}
+
+/* Hero balance card */
+.hero-card{
+  background: linear-gradient(135deg, var(--navy-700) 0%, var(--navy-900) 100%);
+  border:1px solid rgba(227,185,74,0.35);
+  border-radius:20px;
+  padding:26px 22px;
+  box-shadow:var(--shadow);
+  margin-bottom:16px;
+  position:relative;
+  overflow:hidden;
+}
+.hero-card::before{
+  content:'';
+  position:absolute;
+  top:-40%; right:-20%;
+  width:200px; height:200px;
+  background: radial-gradient(circle, rgba(227,185,74,0.18) 0%, transparent 70%);
+  pointer-events:none;
+}
+.hero-label{
+  font-size:12px;
+  color:var(--gold-300);
+  letter-spacing:1px;
+  margin-bottom:6px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.hero-balance{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:36px;
+  font-weight:700;
+  color:var(--white);
+  line-height:1.1;
+  letter-spacing:0.5px;
+}
+.hero-balance .unit{
+  font-size:16px;
+  font-weight:500;
+  color:var(--gold-300);
+  margin-left:4px;
+}
+.hero-sub{
+  margin-top:10px;
+  font-size:13px;
+  color:rgba(255,255,255,0.7);
+}
+.progress-track{
+  margin-top:18px;
+  height:10px;
+  background:rgba(255,255,255,0.12);
+  border-radius:6px;
+  overflow:hidden;
+  position:relative;
+}
+.progress-fill{
+  height:100%;
+  background:linear-gradient(90deg, var(--gold-600), var(--gold-300));
+  border-radius:6px;
+  transition:width 1s cubic-bezier(.4,0,.2,1);
+  position:relative;
+}
+.progress-fill::after{
+  content:'';
+  position:absolute; top:0; right:0; bottom:0; width:30%;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+}
+.progress-labels{
+  display:flex;
+  justify-content:space-between;
+  font-size:11px;
+  color:rgba(255,255,255,0.65);
+  margin-top:6px;
+}
+.progress-pct{
+  color:var(--gold-300);
+  font-weight:600;
+}
+
+/* Stats grid */
+.stats-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:16px;
+}
+.stat-card{
+  background:var(--white);
+  border:1px solid rgba(180,150,80,0.18);
+  border-radius:14px;
+  padding:14px 14px;
+  box-shadow: 0 2px 10px rgba(180,150,80,0.06);
+}
+.stat-card .icon-row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-bottom:6px;
+}
+.stat-card .label{
+  font-size:11.5px;
+  color:var(--ink-soft);
+}
+.stat-card .value{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:18px;
+  font-weight:600;
+  color:var(--navy-800);
+}
+.stat-card .value.gold{ color:var(--gold-600); }
+.stat-card .value small{
+  font-size:11px;
+  font-weight:400;
+  color:var(--ink-soft);
+  margin-left:3px;
+}
+
+/* live ticking interest */
+.ticker-card{
+  background: linear-gradient(135deg, rgba(227,185,74,0.16), rgba(227,185,74,0.06));
+  border:1px solid rgba(200,151,48,0.35);
+  border-radius:16px;
+  padding:16px 18px;
+  margin-bottom:16px;
+  text-align:center;
+}
+.ticker-card .label{
+  font-size:12px;
+  color:var(--gold-700);
+  letter-spacing:0.5px;
+  margin-bottom:4px;
+}
+.ticker-card .ticker-value{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:26px;
+  font-weight:700;
+  color:var(--navy-800);
+  font-variant-numeric:tabular-nums;
+}
+.ticker-card .ticker-note{
+  font-size:11px;
+  color:var(--ink-soft);
+  margin-top:4px;
+}
+
+/* Section title */
+.section-title{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:14px;
+  font-weight:600;
+  color:var(--gold-700);
+  letter-spacing:0.5px;
+  margin:24px 0 12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.section-title::after{
+  content:'';
+  flex:1;
+  height:1px;
+  background:linear-gradient(90deg, rgba(200,151,48,0.4), transparent);
+}
+
+/* Payment form card */
+.form-card{
+  background:var(--white);
+  border:1px solid rgba(180,150,80,0.18);
+  border-radius:16px;
+  padding:18px;
+  margin-bottom:16px;
+  box-shadow: 0 2px 10px rgba(180,150,80,0.06);
+}
+.form-row{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-bottom:14px;
+}
+.form-row label{
+  font-size:12.5px;
+  color:var(--ink-soft);
+}
+.form-row input{
+  background:var(--paper);
+  border:1px solid rgba(180,150,80,0.25);
+  border-radius:10px;
+  padding:11px 14px;
+  font-size:16px;
+  color:var(--navy-800);
+  font-family:'Sarabun', sans-serif;
+  outline:none;
+  transition:border-color 0.2s;
+}
+.form-row input:focus{
+  border-color:var(--gold-500);
+}
+.form-row input::placeholder{ color:rgba(90,99,120,0.4); }
+.payer-select{
+  display:flex;
+  gap:8px;
+}
+.payer-chip{
+  flex:1;
+  padding:11px 8px;
+  border-radius:10px;
+  border:1px solid rgba(180,150,80,0.25);
+  background:var(--paper);
+  color:var(--ink-soft);
+  font-family:'Sarabun', sans-serif;
+  font-size:14px;
+  font-weight:500;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.payer-chip.active{
+  background:rgba(227,185,74,0.18);
+  border-color:var(--gold-500);
+  color:var(--gold-700);
+  font-weight:600;
+}
+.payer-tag{
+  display:inline-block;
+  font-size:10.5px;
+  font-weight:600;
+  padding:2px 8px;
+  border-radius:20px;
+  margin-right:6px;
+}
+.btn-row{
+  display:flex;
+  gap:10px;
+}
+.btn{
+  flex:1;
+  padding:13px;
+  border-radius:10px;
+  border:none;
+  font-family:'Chakra Petch', sans-serif;
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:0.3px;
+  cursor:pointer;
+  transition:transform 0.15s, opacity 0.15s;
+}
+.btn:active{ transform:scale(0.97); }
+.btn-primary{
+  background:linear-gradient(135deg, var(--gold-500), var(--gold-600));
+  color:var(--white);
+}
+.btn-secondary{
+  background:var(--paper);
+  color:var(--ink-soft);
+  border:1px solid rgba(180,150,80,0.2);
+}
+.preview-box{
+  margin-top:4px;
+  padding:10px 12px;
+  background:rgba(227,185,74,0.12);
+  border-radius:8px;
+  font-size:12.5px;
+  color:var(--ink-soft);
+  display:none;
+}
+.preview-box.show{ display:block; }
+.preview-box b{ color:var(--gold-700); }
+.date-thai{
+  margin-top:6px;
+  font-size:12.5px;
+  font-weight:600;
+  color:var(--gold-700);
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-height:18px;
+}
+.date-thai::before{
+  content:'📅';
+  font-size:12px;
+}
+.date-thai.empty{ display:none; }
+
+/* History list */
+.history-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+/* Year-grouped accordion */
+.year-group{
+  background:var(--white);
+  border:1px solid rgba(180,150,80,0.16);
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow: 0 2px 8px rgba(180,150,80,0.05);
+}
+.year-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:13px 15px;
+  cursor:pointer;
+  user-select:none;
+  transition:background 0.15s;
+}
+.year-head:active{ background:rgba(227,185,74,0.08); }
+.year-head .yh-left{ display:flex; align-items:center; gap:10px; }
+.year-head .yh-chevron{
+  font-size:11px;
+  color:var(--gold-600);
+  transition:transform 0.2s;
+}
+.year-group.open .yh-chevron{ transform:rotate(90deg); }
+.year-head .yh-year{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:15px;
+  font-weight:600;
+  color:var(--navy-800);
+}
+.year-head .yh-count{
+  font-size:11px;
+  color:var(--ink-soft);
+  background:var(--paper);
+  padding:2px 8px;
+  border-radius:20px;
+}
+.year-head .yh-right{ text-align:right; }
+.year-head .yh-paid{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:13px;
+  font-weight:600;
+  color:var(--gold-700);
+}
+.year-head .yh-endbal{
+  font-size:10.5px;
+  color:var(--ink-soft);
+  margin-top:1px;
+}
+.year-body{
+  display:none;
+  flex-direction:column;
+  gap:6px;
+  padding:0 10px 12px;
+}
+.year-group.open .year-body{ display:flex; }
+.year-body .history-item{
+  border-radius:10px;
+  padding:11px 12px;
+  animation:none;
+}
+.history-item{
+  background:var(--white);
+  border:1px solid rgba(180,150,80,0.16);
+  border-radius:12px;
+  padding:13px 14px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  animation:slideIn 0.4s ease;
+  box-shadow: 0 2px 8px rgba(180,150,80,0.05);
+}
+@keyframes slideIn{
+  from{ opacity:0; transform:translateY(6px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+.history-item .hi-left .hi-date{
+  font-size:13px;
+  font-weight:500;
+  color:var(--navy-800);
+}
+.history-item .hi-left .hi-meta{
+  font-size:11px;
+  color:var(--ink-soft);
+  margin-top:2px;
+}
+.history-item .hi-right{
+  text-align:right;
+}
+.history-item .hi-right .hi-amount{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:14px;
+  font-weight:600;
+  color:var(--gold-700);
+}
+.history-item .hi-right .hi-balance{
+  font-size:11px;
+  color:var(--ink-soft);
+  margin-top:2px;
+}
+.history-empty{
+  text-align:center;
+  padding:30px 10px;
+  color:var(--ink-soft);
+  font-size:13px;
+}
+.delete-btn{
+  background:none;
+  border:none;
+  color:rgba(192,80,77,0.75);
+  font-size:11px;
+  cursor:pointer;
+  margin-left:10px;
+  padding:4px 6px;
+}
+
+.footer-note{
+  text-align:center;
+  font-size:11px;
+  color:rgba(90,99,120,0.55);
+  margin-top:30px;
+  line-height:1.6;
+}
+
+.confirm-overlay{
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  background:rgba(10,22,40,0.45);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:100;
+  padding:20px;
+}
+.confirm-overlay.show{ display:flex; }
+.confirm-box{
+  background:var(--white);
+  border-radius:16px;
+  padding:22px 20px;
+  max-width:340px;
+  width:100%;
+  box-shadow:0 12px 40px rgba(10,22,40,0.3);
+}
+.confirm-box .confirm-title{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:15px;
+  font-weight:600;
+  color:var(--navy-800);
+  margin-bottom:6px;
+}
+.confirm-box .confirm-text{
+  font-size:13px;
+  color:var(--ink-soft);
+  margin-bottom:18px;
+  line-height:1.5;
+}
+.confirm-box .btn-row{
+  display:flex;
+  gap:10px;
+}
+
+.toast{
+  position:fixed;
+  bottom:24px;
+  left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--gold-500);
+  color:var(--white);
+  padding:11px 22px;
+  border-radius:30px;
+  font-size:13px;
+  font-weight:600;
+  font-family:'Chakra Petch', sans-serif;
+  opacity:0;
+  transition:opacity 0.3s, transform 0.3s;
+  pointer-events:none;
+  box-shadow:0 6px 20px rgba(0,0,0,0.3);
+  z-index:50;
+  white-space:nowrap;
+}
+.toast.show{
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+}
+
+.loading-state{
+  text-align:center;
+  padding:60px 20px;
+  color:var(--ink-soft);
+  font-size:14px;
+}
+
+/* หน้ากรอกรหัสครอบครัว */
+.gate-overlay{
+  position:fixed;
+  inset:0;
+  background:linear-gradient(160deg, var(--navy-900), var(--navy-700));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  z-index:100;
+}
+.gate-card{
+  background:var(--cream);
+  border-radius:20px;
+  padding:32px 24px;
+  max-width:340px;
+  width:100%;
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,0.4);
+}
+.gate-card .gate-icon{ font-size:40px; margin-bottom:10px; }
+.gate-card h2{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:19px;
+  color:var(--navy-800);
+  margin-bottom:6px;
+}
+.gate-card p{
+  font-size:12.5px;
+  color:var(--ink-soft);
+  margin-bottom:18px;
+  line-height:1.6;
+}
+.gate-card input{
+  width:100%;
+  padding:13px 14px;
+  border-radius:12px;
+  border:1.5px solid rgba(180,150,80,0.3);
+  font-family:'Sarabun', sans-serif;
+  font-size:15px;
+  text-align:center;
+  margin-bottom:12px;
+  background:var(--white);
+  color:var(--navy-800);
+}
+.gate-card input:focus{ outline:none; border-color:var(--gold-500); }
+.gate-card .gate-error{
+  color:#b34444;
+  font-size:12px;
+  margin-bottom:10px;
+  min-height:16px;
+}
+.gate-card button{
+  width:100%;
+  padding:13px;
+  border-radius:12px;
+  border:none;
+  background:linear-gradient(135deg, var(--gold-500), var(--gold-600));
+  color:var(--navy-900);
+  font-family:'Chakra Petch', sans-serif;
+  font-weight:600;
+  font-size:14.5px;
+  cursor:pointer;
+}
+.gate-card button:disabled{ opacity:0.6; }
+.gate-card .gate-loading{ font-size:12px; color:var(--ink-soft); margin-top:10px; }
+
+/* แถบสถานะซิงค์ */
+.sync-banner{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  background:var(--white);
+  border:1px solid rgba(180,150,80,0.18);
+  border-radius:12px;
+  padding:9px 13px;
+  margin-bottom:14px;
+  font-size:11.5px;
+  color:var(--ink-soft);
+}
+.sync-banner.offline{ background:#fdf0ee; border-color:#e3b0a8; color:#9a4a3e; }
+.sync-banner .sb-dot{
+  display:inline-block;
+  width:7px; height:7px;
+  border-radius:50%;
+  background:#3a9b5c;
+  margin-right:6px;
+}
+.sync-banner.offline .sb-dot{ background:#c0453a; }
+.sync-banner button{
+  border:none;
+  background:rgba(227,185,74,0.16);
+  color:var(--gold-700);
+  font-family:'Sarabun', sans-serif;
+  font-size:11px;
+  font-weight:600;
+  padding:5px 11px;
+  border-radius:20px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.import-banner{
+  background:rgba(227,185,74,0.12);
+  border:1px solid rgba(200,151,48,0.35);
+  border-radius:12px;
+  padding:13px;
+  margin-bottom:14px;
+  font-size:12.5px;
+  color:var(--navy-800);
+  text-align:center;
+}
+.import-banner button{
+  margin-top:9px;
+  border:none;
+  background:var(--navy-700);
+  color:var(--cream);
+  font-family:'Chakra Petch', sans-serif;
+  font-weight:600;
+  font-size:12.5px;
+  padding:9px 18px;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+/* Debt trend chart */
+.chart-card{
+  background:var(--white);
+  border:1px solid rgba(180,150,80,0.18);
+  border-radius:16px;
+  padding:18px 16px 14px;
+  margin-bottom:16px;
+  box-shadow: 0 2px 10px rgba(180,150,80,0.06);
+}
+.chart-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  margin-bottom:4px;
+}
+.chart-head .chart-caption{
+  font-size:11px;
+  color:var(--ink-soft);
+}
+.chart-range{
+  display:flex;
+  gap:6px;
+  margin-bottom:10px;
+}
+.chart-range button{
+  flex:1;
+  padding:6px 4px;
+  border-radius:8px;
+  border:1px solid rgba(180,150,80,0.25);
+  background:var(--paper);
+  color:var(--ink-soft);
+  font-family:'Chakra Petch', sans-serif;
+  font-size:11px;
+  font-weight:500;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.chart-range button.active{
+  background:rgba(227,185,74,0.18);
+  border-color:var(--gold-500);
+  color:var(--gold-700);
+  font-weight:600;
+}
+.chart-wrap{
+  position:relative;
+  width:100%;
+}
+.chart-svg{ display:block; width:100%; height:auto; overflow:visible; }
+.chart-tip{
+  position:absolute;
+  pointer-events:none;
+  background:var(--navy-800);
+  color:var(--cream);
+  border:1px solid rgba(227,185,74,0.4);
+  border-radius:8px;
+  padding:6px 9px;
+  font-size:11px;
+  line-height:1.45;
+  white-space:nowrap;
+  opacity:0;
+  transition:opacity 0.12s;
+  transform:translate(-50%, -100%);
+  z-index:5;
+  box-shadow:0 6px 18px rgba(10,22,40,0.35);
+}
+.chart-tip b{ color:var(--gold-300); font-family:'Chakra Petch',sans-serif; }
+.chart-legend{
+  display:flex;
+  justify-content:center;
+  gap:16px;
+  margin-top:8px;
+  font-size:10.5px;
+  color:var(--ink-soft);
+}
+.chart-legend span{ display:inline-flex; align-items:center; gap:5px; }
+.chart-legend i{ width:14px; height:3px; border-radius:2px; display:inline-block; }
+.chart-stat-row{
+  display:flex;
+  justify-content:space-around;
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid rgba(180,150,80,0.14);
+}
+.chart-stat{ text-align:center; }
+.chart-stat .cs-val{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:15px;
+  font-weight:600;
+  color:var(--navy-800);
+}
+.chart-stat .cs-val.gold{ color:var(--gold-700); }
+.chart-stat .cs-lbl{ font-size:10px; color:var(--ink-soft); margin-top:2px; }
+</style>
+</head>
+<body>
+<div id="gate-root"></div>
+<div class="wrap">
+
+  <div class="header">
+    <div class="eyebrow">Home Loan Tracker</div>
+    <h1>คำนวณหนี้บ้าน</h1>
+    <div class="house-name">บ้านของเรา</div>
+    <div class="gold-line"></div>
+  </div>
+
+  <div id="app">
+    <div class="loading-state">กำลังโหลดข้อมูล...</div>
+  </div>
+
+  <div class="footer-note">
+    ดอกเบี้ยคำนวณแบบลดต้นลดดอก อัตรา/365 วัน จากยอดต้นคงเหลือ<br>
+    ข้อมูลซิงค์ผ่านระบบกลาง ทุกคนในครอบครัวเห็นยอดเดียวกัน
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-title">ลบรายการนี้?</div>
+    <div class="confirm-text" id="confirm-text">การลบจะคำนวณยอดคงเหลือใหม่ทั้งหมดตามประวัติที่เหลือ</div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="confirm-cancel">ยกเลิก</button>
+      <button class="btn btn-primary" id="confirm-ok" style="background:linear-gradient(135deg, #c0504d, #a33d3a);">ลบรายการ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ORIGINAL_PRINCIPAL = 3823247.00; // ยอดกู้เริ่มต้นตามสัญญา (28 เม.ย. 2559) ตรงกับแอพ SCB
+const ORIGINAL_DATE = '2016-04-28';
+// จุดอ้างอิงก่อนเริ่มเก็บประวัติละเอียด (ยอดคงเหลือจริงตามใบเสร็จ ก่อนรายการแรกที่บันทึกไว้)
+const TRACKING_ANCHOR_BALANCE = 3553254.00; // ยอดคงเหลือก่อนรายการแรกที่บันทึกไว้ (= 3546070.86 + 7183.14 ตามใบเสร็จ 31 ส.ค. 2563)
+const TRACKING_ANCHOR_DATE = '2020-08-30';
+const ANNUAL_RATE = 0.028;
+
+// ตารางอัตราดอกเบี้ยตามประกาศปรับลดดอกเบี้ย (18 มี.ค. 2569)
+// ปีที่ 1-3 นับจาก 9 มี.ค. 2569 = 2.8% คงที่ / ปีที่ 4 เป็นต้นไป = MRR - 1.5% (ลอยตัว)
+const RATE_RESET_DATE = '2026-03-09';
+const FIXED_RATE = 0.028;
+const FLOATING_SPREAD = 0.015; // MRR - 1.5%
+const FIXED_PERIOD_YEARS = 3;
+
+const STORAGE_KEY = 'loan_state_v1';
+const SEED_VERSION = 6; // เพิ่มเลขนี้เมื่อต้องการบังคับโหลดข้อมูลตั้งต้นใหม่
+// หมายเหตุ: currentBalance เก็บเฉพาะ "เงินต้น" หลังตัดชำระงวดล่าสุดเท่านั้น
+// ดอกเบี้ยที่ค้างนับจาก lastUpdateDate จะถูกคำนวณสดทุกครั้งที่เปิดแอพ (ดู liveBalance ใน render)
+
+// ============================================================
+// ตั้งค่าระบบซิงค์กับ Google Sheets (ดูคู่มือตั้งค่า.md)
+// แก้ค่า APPS_SCRIPT_URL ด้านล่างเป็นลิงก์ที่ได้จากตอน Deploy Apps Script
+// (ลิงก์จะลงท้ายด้วย /exec)
+// ============================================================
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGxP7pb_aVptv9rxn_UR61W895yjDeqL-ujLjRqNP0KZmB5sgNhYSIZ15pcX4LI5Ka/exec';
+const PASS_KEY = 'lt_family_pass';
+const CACHE_KEY = 'lt_local_cache_v2';
+
+function isConfigured(){
+  return !!APPS_SCRIPT_URL && APPS_SCRIPT_URL.indexOf('PASTE_') !== 0;
+}
+function getSavedPass(){
+  try{ return localStorage.getItem(PASS_KEY); }catch(e){ return null; }
+}
+function savePass(p){
+  try{ localStorage.setItem(PASS_KEY, p); }catch(e){}
+}
+function clearPass(){
+  try{ localStorage.removeItem(PASS_KEY); }catch(e){}
+}
+function genId(){
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+function localCacheGet(){
+  try{
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function localCacheSet(obj){
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify(obj)); }catch(e){}
+}
+
+let syncStatus = { online: false, lastSync: null, error: null, syncing: false };
+
+
+// ดอกเบี้ยที่จ่ายจริงแต่ละปี ตามหนังสือรับรองดอกเบี้ยเงินกู้ยืมจากธนาคาร (ยอดรวมทุกผู้กู้ร่วม 3 คน)
+// ปี 2561 และ 2562 มาจากแบบภาษี ภ.ง.ด.91 (ยอดต่อคน x 3 เพราะหารเฉลี่ยกัน 3 คนแล้ว)
+const ANNUAL_INTEREST_HISTORY = [
+  { year: 2017, amount: 144270.10, source: 'หนังสือรับรองดอกเบี้ย' },
+  { year: 2018, amount: 181374.87, source: 'แบบภาษี ภ.ง.ด.91 (60,458.29 x 3)' },
+  { year: 2019, amount: 152007.60, source: 'แบบภาษี ภ.ง.ด.91 (50,669.20 x 3)' },
+  { year: 2020, amount: 125741.56, source: 'หนังสือรับรองดอกเบี้ย' },
+  { year: 2021, amount: 91488.31,  source: 'หนังสือรับรองดอกเบี้ย' },
+  { year: 2022, amount: 85792.47,  source: 'หนังสือรับรองดอกเบี้ย' },
+  { year: 2023, amount: 109266.03, source: 'หนังสือรับรองดอกเบี้ย' },
+  { year: 2024, amount: 112593.76, source: 'หนังสือรับรองดอกเบี้ย' },
+  { year: 2025, amount: 90709.01,  source: 'หนังสือรับรองดอกเบี้ย (ทั้งปี)' },
+];
+// ดอกเบี้ย ม.ค.-มิ.ย. 2026 คำนวณจากใบเสร็จจริง เพราะยังไม่มีหนังสือรับรองปี 2569 ออกมา
+const INTEREST_2026_PARTIAL = 32462.45;
+const INTEREST_2026_PARTIAL_NOTE = 'ม.ค.-มิ.ย. 2569 จากใบเสร็จจริง (ยังไม่มีหนังสือรับรองทางการ)'; // ปี พ.ศ.
+
+const LIFETIME_INTEREST_TOTAL = ANNUAL_INTEREST_HISTORY.reduce((s,y)=>s+y.amount, 0) + INTEREST_2026_PARTIAL;
+const LIFETIME_INTEREST_AS_OF = '2026-06-25'; // ข้อมูลล่าสุดที่ใช้คำนวณ ณ วันนี้
+
+const PAYERS = {
+  me:  { label: 'ฉัน',  short: 'ฉัน',  color: '#e8cd7a' },
+  mom: { label: 'แม่',   short: 'แม่',  color: '#7fb3d5' },
+  dad: { label: 'พ่อ',   short: 'พ่อ',  color: '#a3d9a5' }
+};
+
+let state = null;
+let selectedPayer = 'me';
+
+const SEED_PAYMENTS = [
+  {"date":"2020-08-31","amount":18500.0,"interest":11316.86,"principalPaid":7183.14,"balanceAfter":3546070.86,"payer":"dad","locked":true},
+  {"date":"2021-08-31","amount":24300.0,"interest":6885.22,"principalPaid":17414.78,"balanceAfter":3395973.82,"payer":"dad","locked":true},
+  {"date":"2021-09-30","amount":24300.0,"interest":6629.13,"principalPaid":17670.87,"balanceAfter":3378302.95,"payer":"dad","locked":true},
+  {"date":"2021-10-31","amount":24300.0,"interest":6814.45,"principalPaid":17485.55,"balanceAfter":3360817.4,"payer":"dad","locked":true},
+  {"date":"2021-11-30","amount":24300.0,"interest":6560.5,"principalPaid":17739.5,"balanceAfter":3343077.9,"payer":"dad","locked":true},
+  {"date":"2021-12-31","amount":24300.0,"interest":6743.41,"principalPaid":17556.59,"balanceAfter":3325521.31,"payer":"dad","locked":true},
+  {"date":"2022-01-31","amount":24300.0,"interest":6707.97,"principalPaid":17592.03,"balanceAfter":3307929.28,"payer":"dad","locked":true},
+  {"date":"2022-02-28","amount":24300.0,"interest":6026.78,"principalPaid":18273.22,"balanceAfter":3289656.06,"payer":"dad","locked":true},
+  {"date":"2022-04-30","amount":24300.0,"interest":6500.05,"principalPaid":17799.95,"balanceAfter":3254191.76,"payer":"dad","locked":true},
+  {"date":"2022-05-31","amount":30447.12,"interest":8305.33,"principalPaid":12494.67,"balanceAfter":3241697.09,"payer":"dad","locked":true},
+  {"date":"2022-06-30","amount":20800.0,"interest":8006.55,"principalPaid":12793.45,"balanceAfter":3228903.64,"payer":"dad","locked":true},
+  {"date":"2022-07-31","amount":20800.0,"interest":8240.78,"principalPaid":12559.22,"balanceAfter":3216344.42,"payer":"dad","locked":true},
+  {"date":"2022-09-30","amount":20800.0,"interest":7912.83,"principalPaid":12887.17,"balanceAfter":3190865.97,"payer":"dad","locked":true},
+  {"date":"2022-10-31","amount":20800.0,"interest":8143.7,"principalPaid":12656.3,"balanceAfter":3178209.67,"payer":"dad","locked":true},
+  {"date":"2022-11-30","amount":20800.0,"interest":7849.75,"principalPaid":12950.25,"balanceAfter":3165259.42,"payer":"dad","locked":true},
+  {"date":"2022-12-31","amount":20800.0,"interest":8338.51,"principalPaid":12461.49,"balanceAfter":3152797.93,"payer":"dad","locked":true},
+  {"date":"2023-02-28","amount":20800.0,"interest":8334.67,"principalPaid":12465.33,"balanceAfter":3128959.03,"payer":"dad","locked":true},
+  {"date":"2023-03-31","amount":20800.0,"interest":9008.82,"principalPaid":11791.18,"balanceAfter":3117167.85,"payer":"dad","locked":true},
+  {"date":"2023-04-30","amount":20800.0,"interest":9197.8,"principalPaid":11602.2,"balanceAfter":3105565.65,"payer":"dad","locked":true},
+  {"date":"2023-05-31","amount":20800.0,"interest":9600.87,"principalPaid":11199.13,"balanceAfter":3094366.52,"payer":"dad","locked":true},
+  {"date":"2023-06-30","amount":20800.0,"interest":9578.11,"principalPaid":11221.89,"balanceAfter":3083144.63,"payer":"me","locked":true},
+  {"date":"2023-06-30","amount":20800.0,"interest":0.0,"principalPaid":20800.0,"balanceAfter":3062344.63,"payer":"dad","locked":true},
+  {"date":"2023-07-31","amount":20800.0,"interest":9935.44,"principalPaid":10864.56,"balanceAfter":3051480.07,"payer":"me","locked":true},
+  {"date":"2023-07-31","amount":20800.0,"interest":0.0,"principalPaid":20800.0,"balanceAfter":3030680.07,"payer":"dad","locked":true},
+  {"date":"2023-08-31","amount":20800.0,"interest":9832.69,"principalPaid":10967.31,"balanceAfter":3019712.76,"payer":"dad","locked":true},
+  {"date":"2023-09-30","amount":20800.0,"interest":9481.06,"principalPaid":11318.94,"balanceAfter":3008393.82,"payer":"dad","locked":true},
+  {"date":"2023-10-02","amount":20800.0,"interest":629.7,"principalPaid":20170.3,"balanceAfter":2988223.52,"payer":"me","locked":true},
+  {"date":"2023-10-31","amount":20800.0,"interest":9642.55,"principalPaid":11157.45,"balanceAfter":2977066.07,"payer":"me","locked":true},
+  {"date":"2023-10-31","amount":20800.0,"interest":0.0,"principalPaid":20800.0,"balanceAfter":2956266.07,"payer":"dad","locked":true},
+  {"date":"2023-11-29","amount":20800.0,"interest":9559.67,"principalPaid":11240.33,"balanceAfter":2945025.74,"payer":"me","locked":true},
+  {"date":"2023-11-30","amount":20800.0,"interest":328.4,"principalPaid":20471.6,"balanceAfter":2924554.14,"payer":"dad","locked":true},
+  {"date":"2023-12-31","amount":20800.0,"interest":10109.34,"principalPaid":10690.66,"balanceAfter":2913863.48,"payer":"dad","locked":true},
+  {"date":"2024-01-31","amount":20800.0,"interest":10072.38,"principalPaid":10727.62,"balanceAfter":2903135.86,"payer":"dad","locked":true},
+  {"date":"2024-02-29","amount":20800.0,"interest":9387.87,"principalPaid":11412.13,"balanceAfter":2891723.73,"payer":"dad","locked":true},
+  {"date":"2024-03-27","amount":20800.0,"interest":8706.07,"principalPaid":12093.93,"balanceAfter":2879629.8,"payer":"me","locked":true},
+  {"date":"2024-03-31","amount":20800.0,"interest":1284.39,"principalPaid":19515.61,"balanceAfter":2860114.19,"payer":"dad","locked":true},
+  {"date":"2024-04-30","amount":20800.0,"interest":317.63,"principalPaid":20482.37,"balanceAfter":2828080.58,"payer":"dad","locked":true},
+  {"date":"2024-05-30","amount":20800.0,"interest":9460.51,"principalPaid":11339.49,"balanceAfter":2816741.09,"payer":"me","locked":true},
+  {"date":"2024-05-31","amount":20800.0,"interest":314.08,"principalPaid":20485.92,"balanceAfter":2796255.17,"payer":"dad","locked":true},
+  {"date":"2024-06-30","amount":19800.0,"interest":9354.05,"principalPaid":10445.95,"balanceAfter":2785809.22,"payer":"me","locked":true},
+  {"date":"2024-06-30","amount":19800.0,"interest":0.0,"principalPaid":19800.0,"balanceAfter":2766009.22,"payer":"dad","locked":true},
+  {"date":"2024-07-31","amount":19600.0,"interest":9561.3,"principalPaid":10038.7,"balanceAfter":2755970.52,"payer":"dad","locked":true},
+  {"date":"2024-08-31","amount":19600.0,"interest":9526.6,"principalPaid":10073.4,"balanceAfter":2745897.12,"payer":"dad","locked":true},
+  {"date":"2024-09-30","amount":19600.0,"interest":9185.59,"principalPaid":10414.41,"balanceAfter":2735482.71,"payer":"dad","locked":true},
+  {"date":"2024-10-31","amount":19600.0,"interest":911.38,"principalPaid":18688.62,"balanceAfter":2705734.79,"payer":"dad","locked":true},
+  {"date":"2024-11-26","amount":19600.0,"interest":7612.75,"principalPaid":11987.25,"balanceAfter":2693747.54,"payer":"me","locked":true},
+  {"date":"2024-11-30","amount":19600.0,"interest":1164.58,"principalPaid":18435.42,"balanceAfter":2675312.12,"payer":"dad","locked":true},
+  {"date":"2024-12-29","amount":19600.0,"interest":8385.46,"principalPaid":11214.54,"balanceAfter":2664097.58,"payer":"me","locked":true},
+  {"date":"2024-12-31","amount":19600.0,"interest":575.88,"principalPaid":19024.12,"balanceAfter":2645073.46,"payer":"dad","locked":true},
+  {"date":"2025-01-28","amount":20000.0,"interest":8004.79,"principalPaid":11995.21,"balanceAfter":2633078.25,"payer":"me","locked":true},
+  {"date":"2025-01-31","amount":19600.0,"interest":853.77,"principalPaid":18746.23,"balanceAfter":2614332.02,"payer":"dad","locked":true},
+  {"date":"2025-02-05","amount":19600.0,"interest":1412.81,"principalPaid":18187.19,"balanceAfter":2596144.83,"payer":"me","locked":true},
+  {"date":"2025-02-25","amount":20000.0,"interest":5611.94,"principalPaid":14388.06,"balanceAfter":2581756.77,"payer":"me","locked":true},
+  {"date":"2025-02-28","amount":19600.0,"interest":837.13,"principalPaid":18762.87,"balanceAfter":2562993.9,"payer":"dad","locked":true},
+  {"date":"2025-03-31","amount":19600.0,"interest":1343.13,"principalPaid":18256.87,"balanceAfter":2531777.89,"payer":"dad","locked":true},
+  {"date":"2025-04-30","amount":19600.0,"interest":1326.5,"principalPaid":18273.5,"balanceAfter":2500171.98,"payer":"dad","locked":true},
+  {"date":"2025-05-27","amount":20000.0,"interest":7083.71,"principalPaid":3269.17,"balanceAfter":2496902.81,"payer":"me","locked":true},
+  {"date":"2025-05-31","amount":20000.0,"interest":1038.43,"principalPaid":18961.57,"balanceAfter":2477941.24,"payer":"me","locked":true},
+  {"date":"2025-05-31","amount":19600.0,"interest":0.0,"principalPaid":19600.0,"balanceAfter":2458341.24,"payer":"dad","locked":true},
+  {"date":"2025-06-25","amount":20000.0,"interest":6390.01,"principalPaid":13609.99,"balanceAfter":2444731.25,"payer":"me","locked":true},
+  {"date":"2025-06-26","amount":12000.0,"interest":254.18,"principalPaid":11745.82,"balanceAfter":2432985.43,"payer":"me","locked":true},
+  {"date":"2025-06-30","amount":19600.0,"interest":1011.86,"principalPaid":18588.14,"balanceAfter":2414397.29,"payer":"dad","locked":true},
+  {"date":"2025-07-25","amount":20000.0,"interest":6275.78,"principalPaid":13724.22,"balanceAfter":2400673.07,"payer":"me","locked":true},
+  {"date":"2025-07-31","amount":19600.0,"interest":1497.62,"principalPaid":18102.38,"balanceAfter":2382570.69,"payer":"dad","locked":true},
+  {"date":"2025-08-26","amount":20000.0,"interest":6261.27,"principalPaid":13738.73,"balanceAfter":2368831.96,"payer":"me","locked":true},
+  {"date":"2025-08-27","amount":20000.0,"interest":230.07,"principalPaid":19769.93,"balanceAfter":2349062.03,"payer":"me","locked":true},
+  {"date":"2025-08-31","amount":19600.0,"interest":912.59,"principalPaid":18687.41,"balanceAfter":2330374.62,"payer":"dad","locked":true},
+  {"date":"2025-09-30","amount":19600.0,"interest":895.97,"principalPaid":18704.03,"balanceAfter":2287553.87,"payer":"dad","locked":true},
+  {"date":"2025-10-28","amount":20000,"interest":6220.89,"principalPaid":13779.11,"balanceAfter":2273774.76,"payer":"me","locked":true},
+  {"date":"2025-10-29","amount":20000,"interest":220.84,"principalPaid":19779.16,"balanceAfter":2253995.6,"payer":"me","locked":true},
+  {"date":"2025-11-25","amount":20000,"interest":5426.36,"principalPaid":14573.64,"balanceAfter":2220259.79,"payer":"me","locked":true},
+  {"date":"2025-11-25","amount":20000,"interest":0,"principalPaid":14793.35,"balanceAfter":2200259.79,"payer":"me","locked":true},
+  {"date":"2025-11-30","amount":19600,"interest":1068.48,"principalPaid":18531.52,"balanceAfter":2181728.27,"payer":"me","locked":true},
+  {"date":"2025-12-25","amount":20000,"interest":5285.46,"principalPaid":14714.54,"balanceAfter":2167013.73,"payer":"me","locked":true},
+  {"date":"2025-12-25","amount":20000,"interest":0,"principalPaid":20000.0,"balanceAfter":2147013.73,"payer":"me","locked":true},
+  {"date":"2025-12-31","amount":19600,"interest":1215.86,"principalPaid":18384.14,"balanceAfter":2128629.59,"payer":"me","locked":true},
+  {"date":"2026-01-27","amount":20000,"interest":5424.5,"principalPaid":14575.5,"balanceAfter":2114054.09,"payer":"me","locked":true},
+  {"date":"2026-01-27","amount":20000,"interest":0,"principalPaid":20000.0,"balanceAfter":2094054.09,"payer":"me","locked":true},
+  {"date":"2026-01-31","amount":19600,"interest":790.58,"principalPaid":18809.42,"balanceAfter":2075244.67,"payer":"me","locked":true},
+  {"date":"2026-02-24","amount":20000,"interest":6274.63,"principalPaid":13725.37,"balanceAfter":2061519.3,"payer":"me","locked":true},
+  {"date":"2026-02-26","amount":10000,"interest":584.57,"principalPaid":9415.43,"balanceAfter":2052103.87,"payer":"me","locked":true},
+  {"date":"2026-02-28","amount":19600,"interest":581.9,"principalPaid":19018.1,"balanceAfter":2033085.77,"payer":"me","locked":true},
+  {"date":"2026-03-26","amount":20000,"interest":5206.65,"principalPaid":14793.35,"balanceAfter":2018292.42,"payer":"me","locked":true},
+  {"date":"2026-03-26","amount":10000,"interest":0,"principalPaid":10000.0,"balanceAfter":2008292.42,"payer":"me","locked":true},
+  {"date":"2026-03-31","amount":19600,"interest":770.3,"principalPaid":18829.7,"balanceAfter":1989462.72,"payer":"me","locked":true},
+  {"date":"2026-04-27","amount":20000,"interest":4120.64,"principalPaid":15879.36,"balanceAfter":1973583.36,"payer":"me","locked":true},
+  {"date":"2026-04-27","amount":10000,"interest":0,"principalPaid":10000.0,"balanceAfter":1963583.36,"payer":"me","locked":true},
+  {"date":"2026-04-30","amount":19600,"interest":451.89,"principalPaid":19148.11,"balanceAfter":1944435.25,"payer":"me","locked":true},
+  {"date":"2026-05-26","amount":20000,"interest":3878.22,"principalPaid":16121.78,"balanceAfter":1928313.47,"payer":"me","locked":true},
+  {"date":"2026-05-26","amount":10000,"interest":0,"principalPaid":10000.0,"balanceAfter":1918313.47,"payer":"me","locked":true},
+  {"date":"2026-05-31","amount":19600,"interest":735.79,"principalPaid":18864.21,"balanceAfter":1899449.26,"payer":"me","locked":true},
+  {"date":"2026-06-25","amount":20000,"interest":3642.78,"principalPaid":16357.22,"balanceAfter":1883092.04,"payer":"me","locked":true},
+  {"date":"2026-06-25","amount":15000,"interest":0,"principalPaid":15000.0,"balanceAfter":1868092.04,"payer":"me","locked":true}
+];
+
+function fmt(n, dec=0){
+  return Number(n).toLocaleString('th-TH', {minimumFractionDigits:dec, maximumFractionDigits:dec});
+}
+
+function daysBetween(d1, d2){
+  return Math.round((d2 - d1) / 86400000);
+}
+
+function todayStr(){
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+
+function thaiDate(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()+543}`;
+}
+
+async function loadState(){
+  // โหลดจากแคชในเครื่อง (localStorage) ก่อน เพื่อให้เปิดแอพได้ทันทีแม้ออฟไลน์
+  const cached = localCacheGet();
+  if(cached && cached.seedVersion === SEED_VERSION){
+    state = cached;
+    return;
+  }
+
+  // ไม่มีข้อมูลเดิม หรือยังไม่ได้รับข้อมูลย้อนหลังชุดนี้ -> โหลดประวัติย้อนหลังให้
+  const lastPayment = SEED_PAYMENTS[SEED_PAYMENTS.length - 1];
+  state = {
+    originalPrincipal: ORIGINAL_PRINCIPAL,
+    originalDate: ORIGINAL_DATE,
+    trackingAnchorBalance: TRACKING_ANCHOR_BALANCE,
+    trackingAnchorDate: TRACKING_ANCHOR_DATE,
+    currentBalance: lastPayment.balanceAfter, // เงินต้นล้วนๆ หลังตัดงวดล่าสุด (25 มิ.ย. 2026)
+    lastUpdateDate: lastPayment.date,
+    payments: SEED_PAYMENTS.slice(),
+    seedVersion: SEED_VERSION,
+    needsImport: false
+  };
+  saveState();
+}
+
+function saveState(){
+  localCacheSet(state);
+}
+
+// จัดเรียงรายการตามวันที่ แล้วอัปเดตยอดคงเหลือ/วันที่อัปเดตล่าสุดให้ตรงกับรายการสุดท้าย
+function recomputeFromPayments(payments){
+  payments = payments.slice().sort((a,b)=> a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+  state.payments = payments;
+  if(payments.length === 0){
+    state.currentBalance = state.trackingAnchorBalance != null ? state.trackingAnchorBalance : state.originalPrincipal;
+    state.lastUpdateDate = state.trackingAnchorDate != null ? state.trackingAnchorDate : state.originalDate;
+  } else {
+    const last = payments[payments.length - 1];
+    state.currentBalance = last.balanceAfter;
+    state.lastUpdateDate = last.date;
+  }
+}
+
+// ดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์กลาง (Google Sheets ผ่าน Apps Script)
+async function syncFromServer(){
+  const pass = getSavedPass();
+  if(!isConfigured() || !pass){ return false; }
+  syncStatus.syncing = true;
+  try{
+    const res = await fetch(APPS_SCRIPT_URL + '?action=list&pass=' + encodeURIComponent(pass));
+    const data = await res.json();
+    syncStatus.syncing = false;
+    if(!data.ok){
+      syncStatus.online = false;
+      syncStatus.error = data.error || 'ซิงค์ไม่สำเร็จ';
+      return false;
+    }
+    syncStatus.online = true;
+    syncStatus.error = null;
+    syncStatus.lastSync = new Date();
+
+    if(data.payments.length === 0){
+      state.needsImport = true; // ระบบกลางยังไม่มีข้อมูล -> เสนอให้นำเข้าประวัติเดิม
+    } else {
+      state.needsImport = false;
+      recomputeFromPayments(data.payments);
+    }
+    state.seedVersion = SEED_VERSION;
+    saveState();
+    return true;
+  }catch(err){
+    syncStatus.syncing = false;
+    syncStatus.online = false;
+    syncStatus.error = 'เชื่อมต่อไม่ได้ (ตรวจสอบอินเทอร์เน็ต)';
+    return false;
+  }
+}
+
+// นำเข้าประวัติย้อนหลังที่มีอยู่ในไฟล์นี้ (SEED_PAYMENTS) เข้าสู่ระบบกลางครั้งแรก
+async function importSeedData(){
+  const pass = getSavedPass();
+  if(!pass) return;
+  showToast('กำลังนำเข้าข้อมูล...');
+  const payload = SEED_PAYMENTS.map(p => Object.assign({}, p, { id: genId() }));
+  try{
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'bulkImport', pass: pass, payments: payload })
+    });
+    const data = await res.json();
+    if(data.ok){
+      showToast(`นำเข้าข้อมูลสำเร็จ ✓ (${data.count} รายการ)`);
+      await syncFromServer();
+      render();
+    } else {
+      showToast(data.error || 'นำเข้าไม่สำเร็จ');
+    }
+  }catch(err){
+    showToast('เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง');
+  }
+}
+
+// ---------- หน้ากรอกรหัสครอบครัว ----------
+function renderGate(message, isLoading){
+  const root = document.getElementById('gate-root');
+  if(!root) return;
+  root.innerHTML = `
+    <div class="gate-overlay">
+      <div class="gate-card">
+        <div class="gate-icon">🔐</div>
+        <h2>เข้าระบบครอบครัว</h2>
+        <p>กรอกรหัสครอบครัวเพื่อดูและบันทึกยอดหนี้บ้าน<br>ข้อมูลจะซิงค์ตรงกันทุกคนทุกเครื่อง</p>
+        <input type="password" id="gate-pass" placeholder="รหัสครอบครัว" autocomplete="off">
+        <div class="gate-error">${message ? message : ''}</div>
+        <button id="gate-submit" ${isLoading ? 'disabled' : ''}>${isLoading ? 'กำลังตรวจสอบ...' : 'เข้าใช้งาน'}</button>
+      </div>
+    </div>`;
+  const input = document.getElementById('gate-pass');
+  const btn = document.getElementById('gate-submit');
+  function submit(){ handleGateSubmit(input.value); }
+  if(btn) btn.addEventListener('click', submit);
+  if(input){
+    input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') submit(); });
+    input.focus();
+  }
+}
+
+function hideGate(){
+  const root = document.getElementById('gate-root');
+  if(root) root.innerHTML = '';
+}
+
+async function handleGateSubmit(pass){
+  if(!pass){ renderGate('กรุณากรอกรหัสผ่าน'); return; }
+  if(!isConfigured()){
+    renderGate('ยังไม่ได้ตั้งค่าลิงก์ Apps Script ในไฟล์นี้ (ดูคู่มือตั้งค่า.md)');
+    return;
+  }
+  renderGate('', true);
+  try{
+    const res = await fetch(APPS_SCRIPT_URL + '?action=list&pass=' + encodeURIComponent(pass));
+    const data = await res.json();
+    if(!data.ok){
+      renderGate(data.error || 'รหัสผ่านไม่ถูกต้อง');
+      return;
+    }
+    savePass(pass);
+    hideGate();
+    syncStatus.online = true;
+    syncStatus.error = null;
+    syncStatus.lastSync = new Date();
+    if(data.payments.length === 0){
+      state.needsImport = true;
+    } else {
+      state.needsImport = false;
+      recomputeFromPayments(data.payments);
+    }
+    state.seedVersion = SEED_VERSION;
+    saveState();
+    render();
+  }catch(err){
+    renderGate('เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตหรือลิงก์ Apps Script');
+  }
+}
+
+function logoutFamily(){
+  showConfirm('ออกจากระบบบนเครื่องนี้? (ต้องกรอกรหัสครอบครัวใหม่อีกครั้งเพื่อใช้งาน)', () => {
+    clearPass();
+    renderGate();
+  });
+}
+
+async function manualSync(){
+  syncStatus.syncing = true;
+  render();
+  const ok = await syncFromServer();
+  render();
+  showToast(ok ? 'ซิงค์ข้อมูลล่าสุดแล้ว ✓' : (syncStatus.error || 'ซิงค์ไม่สำเร็จ'));
+}
+
+function registerServiceWorker(){
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  }
+}
+
+
+function rateOnDate(dateStr){
+  const reset = new Date(RATE_RESET_DATE + 'T00:00:00');
+  const d = new Date(dateStr + 'T00:00:00');
+  if(d < reset) return FIXED_RATE; // ก่อนวันปรับลด ใช้อัตราที่ใบเสร็จระบุ ณ ขณะนั้น (ใกล้เคียง 2.8%)
+  const fixedEnd = new Date(reset);
+  fixedEnd.setFullYear(fixedEnd.getFullYear() + FIXED_PERIOD_YEARS);
+  if(d < fixedEnd) return FIXED_RATE;
+  const mrr = (state && state.currentMRR) ? state.currentMRR : 6.6;
+  return Math.max(mrr / 100 - FLOATING_SPREAD, 0);
+}
+
+function interestOverRange(balance, fromDateStr, toDateStr){
+  const from = new Date(fromDateStr + 'T00:00:00');
+  const to = new Date(toDateStr + 'T00:00:00');
+  const totalDays = Math.max(daysBetween(from, to), 0);
+  if(totalDays === 0) return 0;
+  // ถ้าอัตราดอกเบี้ยไม่เปลี่ยนระหว่างช่วงนี้ คิดแบบเดียว
+  const rateStart = rateOnDate(fromDateStr);
+  const rateEnd = rateOnDate(toDateStr);
+  if(rateStart === rateEnd){
+    return balance * rateStart / 365 * totalDays;
+  }
+  // อัตราเปลี่ยนระหว่างช่วง -> แบ่งคิดเป็นวันต่อวัน
+  let total = 0;
+  let cursor = new Date(from);
+  for(let i = 0; i < totalDays; i++){
+    const dStr = cursor.toISOString().slice(0,10);
+    total += balance * rateOnDate(dStr) / 365;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return total;
+}
+
+function dailyInterest(balance, dateStr){
+  const rate = rateOnDate(dateStr || todayStr());
+  return balance * rate / 365;
+}
+
+function monthlyInterestEstimate(balance){
+  return dailyInterest(balance, todayStr()) * 30;
+}
+
+function projectPayoff(balance, monthlyPayment){
+  if(monthlyPayment <= 0) return null;
+  let bal = balance;
+  let months = 0;
+  let totalInterest = 0;
+  let cursor = new Date(todayStr() + 'T00:00:00');
+  while(bal > 0 && months < 600){
+    months++;
+    cursor.setMonth(cursor.getMonth() + 1);
+    const rate = rateOnDate(cursor.toISOString().slice(0,10));
+    const monthlyRate = rate / 12;
+    const interest = bal * monthlyRate;
+    let principalPaid = monthlyPayment - interest;
+    if(principalPaid <= 0){ return {months: Infinity, totalInterest: Infinity}; }
+    if(principalPaid > bal) principalPaid = bal;
+    bal -= principalPaid;
+    totalInterest += interest;
+  }
+  return {months, totalInterest};
+}
+
+function addMonths(dateStr, n){
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+function showConfirm(message, onConfirm){
+  const overlay = document.getElementById('confirm-overlay');
+  const textEl = document.getElementById('confirm-text');
+  const okBtn = document.getElementById('confirm-ok');
+  const cancelBtn = document.getElementById('confirm-cancel');
+  textEl.textContent = message;
+  overlay.classList.add('show');
+
+  function close(){
+    overlay.classList.remove('show');
+    okBtn.removeEventListener('click', onOk);
+    cancelBtn.removeEventListener('click', onCancel);
+    overlay.removeEventListener('click', onOverlayClick);
+  }
+  function onOk(){
+    close();
+    onConfirm();
+  }
+  function onCancel(){
+    close();
+  }
+  function onOverlayClick(e){
+    if(e.target === overlay) close();
+  }
+  okBtn.addEventListener('click', onOk);
+  cancelBtn.addEventListener('click', onCancel);
+  overlay.addEventListener('click', onOverlayClick);
+}
+
+// ---------- กราฟแนวโน้มยอดหนี้ ----------
+let chartRangeMonths = 0; // 0 = ทั้งหมด
+
+// สร้างชุดข้อมูลจุดบนกราฟ: เริ่มจากจุดอ้างอิง (ยอดกู้/anchor) แล้วตามด้วย balanceAfter ของแต่ละงวด
+// บวกจุดสุดท้าย = ยอดเรียลไทม์วันนี้ เพื่อให้เส้นลากมาถึงปัจจุบัน
+function buildBalanceSeries(){
+  const pts = [];
+  const anchorBal = state.trackingAnchorBalance != null ? state.trackingAnchorBalance : state.originalPrincipal;
+  const anchorDate = state.trackingAnchorDate != null ? state.trackingAnchorDate : state.originalDate;
+  pts.push({ date: anchorDate, balance: anchorBal });
+  for(const p of state.payments){
+    pts.push({ date: p.date, balance: p.balanceAfter });
+  }
+  // จุดปัจจุบัน (เงินต้นล่าสุด — ไม่รวมดอกเบี้ยค้าง เพื่อให้เทียบกับ balanceAfter ในอดีตได้ตรงกัน)
+  const today = todayStr();
+  if(state.payments.length === 0 || today > state.payments[state.payments.length-1].date){
+    pts.push({ date: today, balance: state.currentBalance });
+  }
+  return pts;
+}
+
+function filterSeriesByRange(series){
+  if(!chartRangeMonths || series.length === 0) return series;
+  const last = new Date(series[series.length-1].date + 'T00:00:00');
+  const cutoff = new Date(last);
+  cutoff.setMonth(cutoff.getMonth() - chartRangeMonths);
+  const filtered = series.filter(p => new Date(p.date+'T00:00:00') >= cutoff);
+  return filtered.length >= 2 ? filtered : series.slice(-2);
+}
+
+function buildChartSVG(series){
+  const W = 320, H = 150;
+  const padL = 8, padR = 8, padT = 12, padB = 22;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const times = series.map(p => new Date(p.date+'T00:00:00').getTime());
+  const bals = series.map(p => p.balance);
+  const tMin = Math.min(...times), tMax = Math.max(...times);
+  const bMaxRaw = Math.max(...bals), bMinRaw = Math.min(...bals);
+  // เพิ่มขอบบน/ล่างเล็กน้อยให้เส้นไม่ชนขอบ
+  const span = (bMaxRaw - bMinRaw) || bMaxRaw || 1;
+  const bMax = bMaxRaw + span*0.08;
+  const bMin = Math.max(0, bMinRaw - span*0.08);
+
+  const xOf = t => padL + (tMax===tMin ? plotW/2 : (t - tMin)/(tMax - tMin) * plotW);
+  const yOf = b => padT + (bMax===bMin ? plotH/2 : (1 - (b - bMin)/(bMax - bMin)) * plotH);
+
+  const coords = series.map((p,i) => ({ x: xOf(times[i]), y: yOf(p.balance), p }));
+
+  const linePath = coords.map((c,i)=> (i===0?'M':'L') + c.x.toFixed(1) + ',' + c.y.toFixed(1)).join(' ');
+  const areaPath = linePath + ` L${coords[coords.length-1].x.toFixed(1)},${(padT+plotH).toFixed(1)} L${coords[0].x.toFixed(1)},${(padT+plotH).toFixed(1)} Z`;
+
+  // เส้นกริดแนวนอน 3 เส้น + ป้ายค่า (ย่อเป็นล้าน)
+  let grid = '';
+  const gridN = 3;
+  for(let g=0; g<=gridN; g++){
+    const val = bMin + (bMax - bMin) * g/gridN;
+    const y = yOf(val);
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(W-padR).toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(180,150,80,0.14)" stroke-width="1"/>`;
+    grid += `<text x="${padL+2}" y="${(y-3).toFixed(1)}" font-size="8" fill="#5a6378" font-family="Chakra Petch">${(val/1e6).toFixed(2)}M</text>`;
+  }
+
+  // ป้ายแกน x แบบปรับอัตโนมัติ: ช่วงสั้นแสดงเดือน+ปี ช่วงยาวแสดงปี เว้นระยะไม่ให้ทับกัน
+  const monthsShort = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const spanDays = (tMax - tMin) / 86400000;
+  const showMonth = spanDays <= 400; // ~13 เดือน
+  let xlabels = '';
+  const usedX = []; // กันป้ายซ้อนกัน
+  const minGap = showMonth ? 34 : 28; // ระยะห่างขั้นต่ำระหว่างป้าย (px ใน viewBox)
+  function placeLabel(x, txt){
+    if(usedX.some(ux => Math.abs(ux - x) < minGap)) return;
+    usedX.push(x);
+    xlabels += `<text x="${x.toFixed(1)}" y="${(H-6)}" font-size="8" fill="#5a6378" text-anchor="middle" font-family="Chakra Petch">${txt}</text>`;
+  }
+  if(showMonth){
+    // แสดงเดือนของแต่ละจุด (เว้นระยะอัตโนมัติ) รูปแบบ "ม.ค. 68"
+    coords.forEach((c,i)=>{
+      const dt = new Date(times[i]);
+      const yy = String((dt.getFullYear()+543) % 100).padStart(2,'0');
+      placeLabel(c.x, `${monthsShort[dt.getMonth()]} ${yy}`);
+    });
+  } else {
+    // แสดงปีเมื่อปีเปลี่ยน
+    let lastYear = null;
+    coords.forEach((c,i)=>{
+      const yr = new Date(times[i]).getFullYear();
+      if(yr !== lastYear){ lastYear = yr; placeLabel(c.x, String(yr+543)); }
+    });
+  }
+
+  // จุด interactive (วงกลมโปร่ง คลิก/แตะเพื่อดู tooltip)
+  const dots = coords.map((c,i)=>{
+    const d = c.p.date, b = c.p.balance;
+    return `<circle class="ch-dot" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="9" fill="transparent" data-x="${c.x.toFixed(1)}" data-y="${c.y.toFixed(1)}" data-date="${d}" data-bal="${b}" style="cursor:pointer"/>`;
+  }).join('');
+
+  // จุดสุดท้าย เน้นเป็นจุดทอง
+  const lastC = coords[coords.length-1];
+
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="chArea" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgba(200,151,48,0.28)"/>
+        <stop offset="100%" stop-color="rgba(200,151,48,0.02)"/>
+      </linearGradient>
+    </defs>
+    ${grid}
+    <path d="${areaPath}" fill="url(#chArea)" stroke="none"/>
+    <path d="${linePath}" fill="none" stroke="#c89730" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${xlabels}
+    <circle cx="${lastC.x.toFixed(1)}" cy="${lastC.y.toFixed(1)}" r="3.5" fill="#16315a" stroke="#e3b94a" stroke-width="1.5"/>
+    ${dots}
+  </svg>`;
+}
+
+function attachChartInteract(){
+  const wrap = document.getElementById('chart-wrap');
+  if(!wrap) return;
+  const tip = document.getElementById('chart-tip');
+  const dots = wrap.querySelectorAll('.ch-dot');
+  const svg = wrap.querySelector('svg');
+
+  function showTip(dot){
+    const date = dot.getAttribute('data-date');
+    const bal = parseFloat(dot.getAttribute('data-bal'));
+    // แปลงพิกัด viewBox -> พิกัดจริงใน wrap
+    const rect = svg.getBoundingClientRect();
+    const vbX = parseFloat(dot.getAttribute('data-x'));
+    const vbY = parseFloat(dot.getAttribute('data-y'));
+    const px = (vbX/320) * rect.width;
+    const py = (vbY/150) * rect.height;
+    tip.innerHTML = `${thaiDate(date)}<br>คงเหลือ <b>${fmt(bal,0)}</b> บาท`;
+    tip.style.left = px + 'px';
+    tip.style.top = (py - 8) + 'px';
+    tip.style.opacity = '1';
+  }
+  function hideTip(){ tip.style.opacity = '0'; }
+
+  dots.forEach(dot=>{
+    dot.addEventListener('mouseenter', ()=>showTip(dot));
+    dot.addEventListener('mouseleave', hideTip);
+    dot.addEventListener('click', (e)=>{ e.stopPropagation(); showTip(dot); });
+    dot.addEventListener('touchstart', (e)=>{ showTip(dot); }, {passive:true});
+  });
+  wrap.addEventListener('click', (e)=>{ if(e.target.tagName!=='circle') hideTip(); });
+}
+
+// ปีที่เปิดดูรายละเอียดในประวัติ (เริ่มต้นเปิดปีล่าสุดปีเดียว)
+let expandedYears = null; // Set ของปี ค.ศ.
+
+function toggleYear(year){
+  if(!expandedYears) expandedYears = new Set();
+  if(expandedYears.has(year)) expandedYears.delete(year);
+  else expandedYears.add(year);
+  render();
+}
+
+function setChartRange(months){
+  chartRangeMonths = months;
+  render();
+}
+
+function buildChartCard(){
+  const fullSeries = buildBalanceSeries();
+  const series = filterSeriesByRange(fullSeries);
+
+  // สถิติประกอบกราฟ
+  const startBal = series[0].balance;
+  const endBal = series[series.length-1].balance;
+  const dropped = startBal - endBal;
+  const startD = new Date(series[0].date+'T00:00:00');
+  const endD = new Date(series[series.length-1].date+'T00:00:00');
+  const months = Math.max(1, (endD.getFullYear()-startD.getFullYear())*12 + (endD.getMonth()-startD.getMonth()));
+  const perMonth = dropped / months;
+
+  const ranges = [
+    { m: 3,  label: '3 ด.' },
+    { m: 6,  label: '6 ด.' },
+    { m: 12, label: '1 ปี' },
+    { m: 36, label: '3 ปี' },
+    { m: 60, label: '5 ปี' },
+    { m: 0,  label: 'ทั้งหมด' },
+  ];
+  const rangeBtns = ranges.map(r =>
+    `<button class="${chartRangeMonths===r.m?'active':''}" onclick="setChartRange(${r.m})">${r.label}</button>`
+  ).join('');
+
+  return `
+  <div class="section-title">แนวโน้มยอดหนี้</div>
+  <div class="chart-card">
+    <div class="chart-head">
+      <span class="chart-caption">เงินต้นคงเหลือตามใบเสร็จจริง (${thaiDate(series[0].date)} – ปัจจุบัน)</span>
+    </div>
+    <div class="chart-range">${rangeBtns}</div>
+    <div class="chart-wrap" id="chart-wrap">
+      ${buildChartSVG(series)}
+      <div class="chart-tip" id="chart-tip"></div>
+    </div>
+    <div class="chart-legend">
+      <span><i style="background:#c89730"></i> เงินต้นคงเหลือ</span>
+      <span>แตะจุดบนเส้นเพื่อดูยอดแต่ละงวด</span>
+    </div>
+    <div class="chart-stat-row">
+      <div class="chart-stat">
+        <div class="cs-val gold">${fmt(dropped,0)}</div>
+        <div class="cs-lbl">เงินต้นลดลง (ช่วงนี้)</div>
+      </div>
+      <div class="chart-stat">
+        <div class="cs-val">${fmt(perMonth,0)}</div>
+        <div class="cs-lbl">ลดเฉลี่ย/เดือน</div>
+      </div>
+      <div class="chart-stat">
+        <div class="cs-val">${months}</div>
+        <div class="cs-lbl">เดือน</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const app = document.getElementById('app');
+  const balance = state.currentBalance; // เงินต้นคงเหลือ (หลังตัดชำระงวดล่าสุด)
+  const accruedInterest = interestOverRange(balance, state.lastUpdateDate, todayStr());
+  const liveBalance = balance + accruedInterest; // ยอดหนี้คงเหลือแบบเรียลไทม์ (รวมดอกเบี้ยค้าง) เหมือนแอพธนาคาร
+  const progress = Math.max(0, Math.min(100, (1 - balance/state.originalPrincipal) * 100));
+  const dInterest = dailyInterest(balance, todayStr());
+  const mInterest = monthlyInterestEstimate(balance);
+
+  // ยอดผ่อนเฉลี่ย/เดือน: ใช้ "12 เดือนล่าสุด" เพื่อสะท้อนกำลังผ่อนปัจจุบัน
+  // (ถ้าเฉลี่ยทุกเดือนตั้งแต่อดีต ช่วงที่เคยผ่อนน้อยจะถ่วงให้ประมาณการช้ากว่าความจริง)
+  const monthlyTotals = {};
+  for(const p of state.payments){
+    const monthKey = p.date.slice(0,7); // YYYY-MM
+    monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + p.amount;
+  }
+  const allMonthKeys = Object.keys(monthlyTotals).sort(); // เก่า -> ใหม่
+  const recentKeys = allMonthKeys.slice(-12); // 12 เดือนล่าสุด
+  const avgBasisKeys = recentKeys.length > 0 ? recentKeys : allMonthKeys;
+  const avgPayment = avgBasisKeys.length > 0
+    ? avgBasisKeys.reduce((s,k)=>s+monthlyTotals[k],0) / avgBasisKeys.length
+    : 50000;
+  const avgBasisMonths = avgBasisKeys.length;
+  const proj = projectPayoff(balance, avgPayment);
+
+  let payoffText = '—';
+  let payoffSub = 'ยังไม่มีข้อมูลผ่อนพอประมาณการ';
+  if(proj && proj.months !== Infinity){
+    const payoffDate = addMonths(todayStr(), proj.months);
+    const y = proj.months / 12;
+    payoffText = `${proj.months} เดือน`;
+    payoffSub = `≈ ${y.toFixed(1)} ปี · หมดหนี้ราว ${thaiDate(payoffDate.toISOString().slice(0,10))}<br><span style="font-size:10.5px;opacity:0.8;">คำนวณจากยอดผ่อนเฉลี่ย ${fmt(avgPayment,0)} บาท/เดือน (${avgBasisMonths} เดือนล่าสุด)</span>`;
+  } else if(proj && proj.months === Infinity){
+    payoffText = 'ไม่หมด';
+    payoffSub = 'ยอดผ่อนน้อยกว่าดอกเบี้ยต่อเดือน';
+  }
+
+  const totalInterestPaid = state.payments.reduce((s,p)=>s+(p.interest||0),0);
+
+  // จัดกลุ่มประวัติตามปี (พ.ศ.) เป็นแบบพับเก็บได้ เพื่อไม่ให้รายการยาวเกินไป
+  let historyHtml;
+  if(state.payments.length === 0){
+    historyHtml = `<div class="history-empty">ยังไม่มีประวัติการผ่อนชำระ<br>เริ่มบันทึกครั้งแรกได้เลย</div>`;
+  } else {
+    // เก็บ index เดิมไว้กับแต่ละรายการ (ใช้ตอนกดลบ)
+    const indexed = state.payments.map((p, idx) => ({ p, idx }));
+    // จัดกลุ่มตามปี ค.ศ.
+    const groups = {};
+    for(const item of indexed){
+      const yr = parseInt(item.p.date.slice(0,4), 10);
+      (groups[yr] = groups[yr] || []).push(item);
+    }
+    const yearsDesc = Object.keys(groups).map(Number).sort((a,b)=>b-a);
+
+    // เริ่มต้น: เปิดเฉพาะปีล่าสุด ถ้ายังไม่เคยตั้งค่า
+    if(expandedYears === null){
+      expandedYears = new Set([yearsDesc[0]]);
+    }
+
+    historyHtml = yearsDesc.map(yr => {
+      const items = groups[yr]; // เรียงตามวันที่ (เก่า->ใหม่) ตามลำดับใน payments
+      const count = items.length;
+      const totalPaid = items.reduce((s,it)=>s+it.p.amount, 0);
+      // ยอดคงเหลือสิ้นปี = balanceAfter ของรายการสุดท้ายในปีนั้น
+      const endBal = items[items.length-1].p.balanceAfter;
+      const isOpen = expandedYears.has(yr);
+
+      const rows = items.slice().reverse().map(({p, idx}) => `
+        <div class="history-item">
+          <div class="hi-left">
+            <div class="hi-date">${thaiDate(p.date)}</div>
+            <div class="hi-meta">ดอกเบี้ย ${fmt(p.interest)} · เงินต้น ${fmt(p.principalPaid)}</div>
+          </div>
+          <div class="hi-right" style="display:flex; align-items:center;">
+            <div>
+              <div class="hi-amount">-${fmt(p.amount)} บาท</div>
+              <div class="hi-balance">คงเหลือ ${fmt(p.balanceAfter)}</div>
+            </div>
+            <button class="delete-btn" onclick="event.stopPropagation(); deletePayment(${idx})">ลบ</button>
+          </div>
+        </div>`).join('');
+
+      return `
+      <div class="year-group ${isOpen?'open':''}">
+        <div class="year-head" onclick="toggleYear(${yr})">
+          <div class="yh-left">
+            <span class="yh-chevron">▶</span>
+            <span class="yh-year">ปี ${yr + 543}</span>
+            <span class="yh-count">${count} งวด</span>
+          </div>
+          <div class="yh-right">
+            <div class="yh-paid">${fmt(totalPaid,0)} บาท</div>
+            <div class="yh-endbal">คงเหลือสิ้นปี ${fmt(endBal,0)}</div>
+          </div>
+        </div>
+        <div class="year-body">${rows}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // แถบสถานะซิงค์ + ปุ่มนำเข้าข้อมูลเริ่มต้น (เฉพาะตอนเชื่อมระบบกลางไว้แล้ว)
+  let syncBannerHtml = '';
+  if(isConfigured() && getSavedPass()){
+    const statusText = syncStatus.syncing
+      ? 'กำลังซิงค์...'
+      : (syncStatus.online
+          ? `ซิงค์ล่าสุด ${syncStatus.lastSync ? syncStatus.lastSync.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : ''}`
+          : 'ออฟไลน์ — แสดงข้อมูลล่าสุดที่มี');
+    syncBannerHtml = `
+    <div class="sync-banner ${syncStatus.online ? '' : 'offline'}">
+      <span><span class="sb-dot"></span>${statusText}</span>
+      <span>
+        <button onclick="manualSync()">↻ ซิงค์</button>
+        <button onclick="logoutFamily()" style="background:transparent; color:var(--ink-soft); margin-left:4px;">ออกจากระบบ</button>
+      </span>
+    </div>`;
+
+    if(state.needsImport){
+      syncBannerHtml += `
+      <div class="import-banner">
+        ระบบกลางยังไม่มีข้อมูล — นำเข้าประวัติเดิม ${SEED_PAYMENTS.length} รายการที่มีอยู่ในเครื่องนี้เข้าสู่ระบบกลางหรือไม่?
+        <br><button onclick="importSeedData()">นำเข้าข้อมูลเริ่มต้น</button>
+      </div>`;
+    }
+  }
+
+  app.innerHTML = `
+    ${syncBannerHtml}
+    <div class="hero-card">
+      <div class="hero-label">💰 ยอดหนี้คงเหลือ (เรียลไทม์)</div>
+      <div class="hero-balance">${fmt(liveBalance, 2)}<span class="unit">บาท</span></div>
+      <div class="hero-sub">เงินต้น ${fmt(balance, 2)} + ดอกเบี้ยค้าง ${fmt(accruedInterest, 2)} บาท (ตั้งแต่ ${thaiDate(state.lastUpdateDate)})</div>
+      <div class="progress-track"><div class="progress-fill" style="width:${progress}%"></div></div>
+      <div class="progress-labels">
+        <span>ผ่อนไปแล้ว <span class="progress-pct">${progress.toFixed(1)}%</span></span>
+        <span>เหลือ ${fmt(liveBalance,0)} บาท</span>
+      </div>
+      <div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; font-size:12.5px; color:rgba(250,247,238,0.6);">
+        <span>ยอดหนี้เงินกู้ทั้งหมด (ตั้งต้น)</span>
+        <span style="color:var(--gold-300); font-weight:600;">${fmt(state.originalPrincipal, 2)} บาท</span>
+      </div>
+      <div style="margin-top:6px; display:flex; justify-content:space-between; font-size:12.5px; color:rgba(250,247,238,0.6);">
+        <span>วันที่กู้</span>
+        <span style="color:var(--gold-300); font-weight:600;">${thaiDate(state.originalDate)}</span>
+      </div>
+    </div>
+
+    <div class="ticker-card">
+      <div class="label">ดอกเบี้ยที่เกิดขึ้นวันนี้ (โดยประมาณ)</div>
+      <div class="ticker-value">${fmt(dInterest, 2)} บาท / วัน</div>
+      <div class="ticker-note">≈ ${fmt(mInterest, 0)} บาท ต่อเดือน ที่อัตรา ${(rateOnDate(todayStr())*100).toFixed(2)}% ต่อปี</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="icon-row"><span class="label">ผ่อนแล้วทั้งหมด (ต้น+ดอก)</span></div>
+        <div class="value">${fmt((state.originalPrincipal - balance) + LIFETIME_INTEREST_TOTAL, 0)}<small>บาท</small></div>
+      </div>
+      <div class="stat-card">
+        <div class="icon-row"><span class="label">ผ่อนต้นเงินไปแล้ว</span></div>
+        <div class="value">${fmt(state.originalPrincipal - balance, 0)}<small>บาท</small></div>
+      </div>
+      <div class="stat-card">
+        <div class="icon-row"><span class="label">ดอกเบี้ยจ่ายไปแล้วทั้งหมด</span></div>
+        <div class="value">${fmt(LIFETIME_INTEREST_TOTAL, 0)}<small>บาท</small></div>
+      </div>
+      <div class="stat-card">
+        <div class="icon-row"><span class="label">คาดว่าหมดหนี้ใน</span></div>
+        <div class="value gold">${payoffText}</div>
+      </div>
+      <div class="stat-card">
+        <div class="icon-row"><span class="label">ยอดผ่อนเฉลี่ย/เดือน</span></div>
+        <div class="value">${fmt(avgPayment,0)}<small>บาท</small></div>
+      </div>
+    </div>
+    <div style="font-size:11.5px; color:var(--ink-soft); text-align:center; margin-top:-6px; margin-bottom:6px;">${payoffSub}</div>
+
+    ${buildChartCard()}
+
+    <div class="section-title">สรุปดอกเบี้ยรายปี</div>
+    <div class="form-card" style="padding:14px 16px;">
+      <div style="display:flex; flex-direction:column; gap:0;">
+        ${ANNUAL_INTEREST_HISTORY.map(y => `
+          <div style="display:flex; justify-content:space-between; align-items:baseline; padding:8px 0; border-bottom:1px solid rgba(180,150,80,0.12);">
+            <span style="font-size:13px; color:var(--navy-800); font-weight:500;">ปี ${y.year + 543}</span>
+            <span style="text-align:right;">
+              <span style="font-family:'Chakra Petch', sans-serif; font-size:14px; font-weight:600; color:var(--gold-700);">${fmt(y.amount,2)} บาท</span>
+              <div style="font-size:10px; color:var(--ink-soft); margin-top:1px;">${y.source}</div>
+            </span>
+          </div>
+        `).join('')}
+        <div style="display:flex; justify-content:space-between; align-items:baseline; padding:8px 0; border-bottom:1px solid rgba(180,150,80,0.12);">
+          <span style="font-size:13px; color:var(--navy-800); font-weight:500;">ปี 2569 (ม.ค.-มิ.ย.)</span>
+          <span style="text-align:right;">
+            <span style="font-family:'Chakra Petch', sans-serif; font-size:14px; font-weight:600; color:var(--gold-700);">${fmt(INTEREST_2026_PARTIAL,2)} บาท</span>
+            <div style="font-size:10px; color:var(--ink-soft); margin-top:1px;">${INTEREST_2026_PARTIAL_NOTE}</div>
+          </span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; padding:12px 0 2px;">
+          <span style="font-family:'Chakra Petch', sans-serif; font-size:14px; font-weight:600; color:var(--navy-800);">รวมทั้งหมด (2560–มิ.ย. 2569)</span>
+          <span style="font-family:'Chakra Petch', sans-serif; font-size:18px; font-weight:700; color:var(--gold-700);">${fmt(LIFETIME_INTEREST_TOTAL,2)} บาท</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">บันทึกการผ่อนชำระ</div>
+    <div class="form-card">
+      <div class="form-row">
+        <label>วันที่ชำระ</label>
+        <input type="date" id="pay-date" value="${todayStr()}">
+        <div class="date-thai" id="date-thai"></div>
+      </div>
+      <div class="form-row">
+        <label>จำนวนเงินที่ชำระ (บาท)</label>
+        <input type="number" id="pay-amount" placeholder="เช่น 19600" inputmode="decimal" value="">
+      </div>
+      <div class="preview-box" id="preview-box"></div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-primary" onclick="submitPayment()">บันทึกการผ่อน</button>
+      </div>
+    </div>
+
+    <div class="section-title">ประวัติการผ่อนชำระ</div>
+    <div class="history-list">${historyHtml}</div>
+  `;
+
+  const amtInput = document.getElementById('pay-amount');
+  const dateInput = document.getElementById('pay-date');
+  attachChartInteract();
+  // แสดงวันที่ที่เลือกเป็นไทย พ.ศ. ใต้ช่อง (ปฏิทินมือถือยังเป็น ค.ศ. แต่ยืนยันผลเป็น พ.ศ.)
+  function updateDateThai(){
+    const box = document.getElementById('date-thai');
+    if(!box) return;
+    const pdate = dateInput.value;
+    if(!pdate){
+      box.classList.add('empty');
+      box.textContent = '';
+      return;
+    }
+    box.classList.remove('empty');
+    box.textContent = thaiDate(pdate);
+  }
+  function updatePreview(){
+    const amt = parseFloat(amtInput.value);
+    const pdate = dateInput.value;
+    const box = document.getElementById('preview-box');
+    if(!amt || amt <= 0 || !pdate){
+      box.classList.remove('show');
+      return;
+    }
+    const days = Math.max(daysBetween(new Date(state.lastUpdateDate+'T00:00:00'), new Date(pdate+'T00:00:00')), 0);
+    const interest = interestOverRange(state.currentBalance, state.lastUpdateDate, pdate);
+    const principalPaid = Math.max(amt - interest, 0);
+    const newBalance = Math.max(state.currentBalance - principalPaid, 0);
+    box.innerHTML = `วันที่ <b>${thaiDate(pdate)}</b> · ช่วงเวลา ${days} วัน · ดอกเบี้ยประมาณ <b>${fmt(interest,2)}</b> บาท · เงินต้นที่ตัด <b>${fmt(principalPaid,2)}</b> บาท<br>ยอดคงเหลือใหม่โดยประมาณ: <b>${fmt(newBalance,2)} บาท</b>`;
+    box.classList.add('show');
+  }
+  amtInput.addEventListener('input', updatePreview);
+  dateInput.addEventListener('input', () => { updateDateThai(); updatePreview(); });
+  updateDateThai();
+  updatePreview();
+}
+
+async function submitPayment(){
+  const amtInput = document.getElementById('pay-amount');
+  const dateInput = document.getElementById('pay-date');
+  const amount = parseFloat(amtInput.value);
+  const payDate = dateInput.value;
+
+  if(!amount || amount <= 0){
+    showToast('กรุณากรอกจำนวนเงินให้ถูกต้อง');
+    return;
+  }
+  if(!payDate){
+    showToast('กรุณาเลือกวันที่');
+    return;
+  }
+
+  const interest = interestOverRange(state.currentBalance, state.lastUpdateDate, payDate);
+  let principalPaid = amount - interest;
+  if(principalPaid < 0) principalPaid = 0;
+  if(principalPaid > state.currentBalance) principalPaid = state.currentBalance;
+  const newBalance = Math.max(state.currentBalance - principalPaid, 0);
+
+  const newPayment = {
+    id: genId(),
+    date: payDate,
+    amount: amount,
+    interest: Math.round(interest*100)/100,
+    principalPaid: Math.round(principalPaid*100)/100,
+    balanceAfter: Math.round(newBalance*100)/100,
+    payer: selectedPayer,
+    locked: false
+  };
+
+  // ถ้าเชื่อมระบบกลางไว้แล้ว ต้องบันทึกขึ้นเซิร์ฟเวอร์ก่อน เพื่อให้ทุกคนเห็นตรงกันแน่นอน
+  const pass = getSavedPass();
+  if(isConfigured() && pass){
+    const submitBtn = document.querySelector('.btn-primary');
+    if(submitBtn) submitBtn.disabled = true;
+    showToast('กำลังบันทึก...');
+    try{
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'add', pass: pass, payment: newPayment })
+      });
+      const data = await res.json();
+      if(!data.ok){
+        if(submitBtn) submitBtn.disabled = false;
+        showToast(data.error || 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+        return;
+      }
+      syncStatus.online = true;
+      syncStatus.error = null;
+      syncStatus.lastSync = new Date();
+    }catch(err){
+      if(submitBtn) submitBtn.disabled = false;
+      syncStatus.online = false;
+      showToast('ไม่มีอินเทอร์เน็ต บันทึกไม่สำเร็จ ลองใหม่เมื่อมีเน็ต');
+      return;
+    }
+    if(submitBtn) submitBtn.disabled = false;
+  }
+
+  state.payments.push(newPayment);
+  state.currentBalance = newBalance;
+  state.lastUpdateDate = payDate;
+
+  await saveState();
+  render();
+  showToast(isConfigured() && pass ? 'บันทึกเรียบร้อย ✓ ซิงค์กับทุกคนแล้ว' : 'บันทึกเรียบร้อย ✓');
+}
+
+function deletePayment(idx){
+  const target = state.payments[idx];
+  const synced = isConfigured() && !!getSavedPass();
+
+  if(synced){
+    // ในโหมดซิงค์กับระบบกลาง: อนุญาตลบเฉพาะ "รายการล่าสุด" เท่านั้น
+    // (ลบรายการกลางๆ ต้องคำนวณยอดของรายการถัดไปทั้งหมดใหม่ ซึ่งจะทำให้ข้อมูลของทุกคนไม่ตรงกัน)
+    if(target && target.locked){
+      showToast('รายการจากใบเสร็จจริงไม่สามารถลบผ่านระบบกลางได้');
+      return;
+    }
+    if(idx !== state.payments.length - 1){
+      showToast('โหมดซิงค์: ลบได้เฉพาะรายการล่าสุดเท่านั้น เพื่อไม่ให้ข้อมูลของทุกคนไม่ตรงกัน');
+      return;
+    }
+    showConfirm('ลบรายการล่าสุดนี้? ข้อมูลจะถูกลบออกจากระบบกลางทันที', () => {
+      doDeleteSynced(idx);
+    });
+    return;
+  }
+
+  // โหมดยังไม่ได้ซิงค์ (ใช้ในเครื่องเดียวเท่านั้น) -> คำนวณยอดคงเหลือใหม่ทั้งหมดได้ตามเดิม
+  if(target && target.locked){
+    showConfirm('รายการนี้เป็นข้อมูลจากใบเสร็จจริง การลบจะคำนวณยอดคงเหลือใหม่ทั้งหมดด้วยอัตราดอกเบี้ยประมาณการ (อาจไม่ตรงกับอัตราจริงในอดีตทุกจุด) ดำเนินการต่อ?', () => {
+      doDeletePayment(idx);
+    });
+    return;
+  }
+  showConfirm('ลบรายการนี้แล้วจะคำนวณยอดคงเหลือใหม่ทั้งหมด ดำเนินการต่อ?', () => {
+    doDeletePayment(idx);
+  });
+}
+
+// ลบรายการล่าสุดในโหมดซิงค์: ลบที่เซิร์ฟเวอร์ก่อน แล้วค่อยอัปเดตในเครื่อง
+async function doDeleteSynced(idx){
+  const target = state.payments[idx];
+  const pass = getSavedPass();
+  if(!target || !target.id){
+    showToast('ไม่พบ id ของรายการนี้ (อาจยังไม่เคยซิงค์) — กรุณาซิงค์ใหม่ก่อนลบ');
+    return;
+  }
+  try{
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'delete', pass: pass, id: target.id })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      showToast(data.error || 'ลบไม่สำเร็จ');
+      return;
+    }
+  }catch(err){
+    showToast('ไม่มีอินเทอร์เน็ต ลบไม่สำเร็จ');
+    return;
+  }
+  state.payments.splice(idx, 1);
+  recomputeFromPayments(state.payments);
+  saveState();
+  render();
+  showToast('ลบรายการแล้ว ✓ ซิงค์กับทุกคนแล้ว');
+}
+
+async function doDeletePayment(idx){
+  const removedWasLocked = !!(state.payments[idx] && state.payments[idx].locked);
+  state.payments.splice(idx, 1);
+
+  if(removedWasLocked){
+    // ลบรายการที่มาจากใบเสร็จจริง -> ไม่มีจุดอ้างอิงที่แน่นอนแล้ว ต้องคำนวณใหม่ทั้งหมด
+    // โดยใช้อัตราดอกเบี้ยประมาณการ (rateOnDate) ซึ่งอาจไม่ตรง 100% กับอัตราจริงในอดีต
+    let bal = state.trackingAnchorBalance != null ? state.trackingAnchorBalance : state.originalPrincipal;
+    let lastDate = state.trackingAnchorDate != null ? state.trackingAnchorDate : state.originalDate;
+    for(const p of state.payments){
+      const interest = interestOverRange(bal, lastDate, p.date);
+      let principalPaid = p.amount - interest;
+      if(principalPaid < 0) principalPaid = 0;
+      if(principalPaid > bal) principalPaid = bal;
+      bal -= principalPaid;
+      p.interest = Math.round(interest*100)/100;
+      p.principalPaid = Math.round(principalPaid*100)/100;
+      p.balanceAfter = Math.round(bal*100)/100;
+      p.locked = false; // ค่าที่คำนวณใหม่นี้ไม่ใช่ข้อมูลล็อกจากใบเสร็จแล้ว
+      lastDate = p.date;
+    }
+    state.currentBalance = bal;
+    state.lastUpdateDate = state.payments.length > 0 ? state.payments[state.payments.length-1].date : lastDate;
+  } else {
+    // ลบรายการที่ผู้ใช้บันทึกเอง -> ข้อมูลล็อกอื่นๆยังถูกต้อง คำนวณใหม่แค่ส่วนที่ไม่ล็อก
+    let anchorBal = state.trackingAnchorBalance != null ? state.trackingAnchorBalance : state.originalPrincipal;
+    let anchorDate = state.trackingAnchorDate != null ? state.trackingAnchorDate : state.originalDate;
+    for(const p of state.payments){
+      if(p.locked){
+        anchorBal = p.balanceAfter;
+        anchorDate = p.date;
+      } else {
+        const interest = interestOverRange(anchorBal, anchorDate, p.date);
+        let principalPaid = p.amount - interest;
+        if(principalPaid < 0) principalPaid = 0;
+        if(principalPaid > anchorBal) principalPaid = anchorBal;
+        anchorBal -= principalPaid;
+        p.interest = Math.round(interest*100)/100;
+        p.principalPaid = Math.round(principalPaid*100)/100;
+        p.balanceAfter = Math.round(anchorBal*100)/100;
+        anchorDate = p.date;
+      }
+    }
+    state.currentBalance = anchorBal;
+    state.lastUpdateDate = state.payments.length > 0 ? state.payments[state.payments.length-1].date : anchorDate;
+  }
+
+  await saveState();
+  render();
+  showToast('ลบรายการแล้ว');
+}
+
+(async function init(){
+  await loadState();
+  render();
+  registerServiceWorker();
+
+  if(!isConfigured()){
+    return; // ยังไม่ได้ตั้งค่า Apps Script URL -> ใช้แอพแบบในเครื่องเดียวไปก่อน (ดูคู่มือตั้งค่า.md)
+  }
+
+  const pass = getSavedPass();
+  if(!pass){
+    renderGate(); // ยังไม่เคยกรอกรหัสครอบครัวบนเครื่องนี้ -> ให้กรอกก่อนใช้งาน
+    return;
+  }
+
+  // มีรหัสอยู่แล้ว -> ซิงค์ข้อมูลล่าสุดจากระบบกลางแบบเงียบๆ ในพื้นหลัง
+  const ok = await syncFromServer();
+  render();
+  if(!ok){
+    showToast('ออฟไลน์ — แสดงข้อมูลล่าสุดที่มีในเครื่อง');
+  }
+})();
+</script>
+</body>
+</html>
