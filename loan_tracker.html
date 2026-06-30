@@ -538,7 +538,8 @@ body{
 /* ปุ่มอัปโหลดใบเสร็จ PDF */
 .receipt-upload-row{
   display:flex;
-  align-items:center;
+  flex-direction:column;
+  align-items:stretch;
   gap:10px;
   margin:14px 0 4px;
   padding-top:14px;
@@ -547,11 +548,12 @@ body{
 .receipt-upload-row .ru-label{
   font-size:11.5px;
   color:var(--ink-soft);
-  flex:1;
-  line-height:1.5;
+  line-height:1.6;
+  word-break:keep-all;
+  overflow-wrap:break-word;
 }
 .btn-upload{
-  flex-shrink:0;
+  width:100%;
   border:1.5px solid var(--gold-500);
   background:rgba(227,185,74,0.1);
   color:var(--gold-700);
@@ -1909,7 +1911,7 @@ function render(){
         <button class="btn btn-primary" onclick="submitPayment()">บันทึกการผ่อน</button>
       </div>
       <div class="receipt-upload-row">
-        <div class="ru-label">หรืออัปโหลดใบเสร็จ SCB (PDF ที่ปลดรหัสแล้ว) ให้แอพอ่านข้อมูลให้อัตโนมัติ</div>
+        <div class="ru-label">หรืออัปโหลดใบเสร็จ SCB (PDF ที่ปลดรหัสแล้ว) ให้แอพอ่านข้อมูลอัตโนมัติ</div>
         <button class="btn-upload" id="receipt-upload-btn" onclick="document.getElementById('receipt-file-input').click()">📄 อัปโหลด</button>
         <input type="file" id="receipt-file-input" accept="application/pdf" style="display:none" onchange="handleReceiptFile(event)">
       </div>
