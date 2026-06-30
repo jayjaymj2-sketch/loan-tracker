@@ -535,6 +535,87 @@ body{
   gap:10px;
 }
 
+/* ปุ่มอัปโหลดใบเสร็จ PDF */
+.receipt-upload-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:14px 0 4px;
+  padding-top:14px;
+  border-top:1px dashed rgba(180,150,80,0.3);
+}
+.receipt-upload-row .ru-label{
+  font-size:11.5px;
+  color:var(--ink-soft);
+  flex:1;
+  line-height:1.5;
+}
+.btn-upload{
+  flex-shrink:0;
+  border:1.5px solid var(--gold-500);
+  background:rgba(227,185,74,0.1);
+  color:var(--gold-700);
+  font-family:'Chakra Petch', sans-serif;
+  font-weight:600;
+  font-size:12.5px;
+  padding:10px 16px;
+  border-radius:10px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.btn-upload:disabled{ opacity:0.5; cursor:default; }
+
+/* หน้าต่างพรีวิวข้อมูลจากใบเสร็จ ก่อนยืนยันบันทึก */
+.receipt-modal .confirm-box{ max-width:380px; text-align:left; }
+.receipt-modal .rm-title{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:16px;
+  font-weight:600;
+  color:var(--navy-800);
+  margin-bottom:4px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+.receipt-modal .rm-sub{
+  font-size:11.5px;
+  color:var(--ink-soft);
+  margin-bottom:14px;
+}
+.receipt-modal .rm-warning{
+  background:#fdf0ee;
+  border:1px solid #e3b0a8;
+  color:#9a4a3e;
+  border-radius:10px;
+  padding:9px 11px;
+  font-size:11.5px;
+  margin-bottom:12px;
+  line-height:1.5;
+}
+.rm-field{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-bottom:11px;
+}
+.rm-field label{
+  font-size:11px;
+  color:var(--ink-soft);
+  font-weight:500;
+}
+.rm-field input, .rm-field select{
+  padding:10px 12px;
+  border-radius:10px;
+  border:1.5px solid rgba(180,150,80,0.3);
+  font-family:'Sarabun', sans-serif;
+  font-size:14px;
+  color:var(--navy-800);
+  background:var(--white);
+}
+.rm-field input:focus, .rm-field select:focus{ outline:none; border-color:var(--gold-500); }
+.rm-field .rm-hint{ font-size:10px; color:var(--ink-soft); opacity:0.85; }
+.rm-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0 10px; }
+
 .toast{
   position:fixed;
   bottom:24px;
@@ -784,6 +865,8 @@ body{
 .chart-stat .cs-val.gold{ color:var(--gold-700); }
 .chart-stat .cs-lbl{ font-size:10px; color:var(--ink-soft); margin-top:2px; }
 </style>
+<!-- pdf.js: ใช้สำหรับอ่านข้อความจากไฟล์ PDF ใบเสร็จ (ทำงานในเบราว์เซอร์ ไม่ส่งไฟล์ขึ้นเซิร์ฟเวอร์ใดๆ) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 <div id="gate-root"></div>
@@ -819,6 +902,52 @@ body{
   </div>
 </div>
 
+<!-- หน้าต่างพรีวิวข้อมูลที่อ่านได้จากใบเสร็จ PDF ก่อนยืนยันบันทึก -->
+<div class="confirm-overlay receipt-modal" id="receipt-overlay">
+  <div class="confirm-box">
+    <div class="rm-title">📄 ตรวจสอบข้อมูลจากใบเสร็จ</div>
+    <div class="rm-sub">เช็คความถูกต้องก่อนกดยืนยัน แก้ไขตัวเลขในช่องได้ถ้าจำเป็น</div>
+    <div id="receipt-warnings"></div>
+    <div class="rm-field">
+      <label>วันที่ชำระ</label>
+      <input type="date" id="rm-date">
+    </div>
+    <div class="rm-grid">
+      <div class="rm-field">
+        <label>เงินต้นที่ตัด (บาท)</label>
+        <input type="number" id="rm-principal" inputmode="decimal">
+      </div>
+      <div class="rm-field">
+        <label>ดอกเบี้ย (บาท)</label>
+        <input type="number" id="rm-interest" inputmode="decimal">
+      </div>
+    </div>
+    <div class="rm-grid">
+      <div class="rm-field">
+        <label>ยอดชำระรวม (บาท)</label>
+        <input type="number" id="rm-amount" inputmode="decimal">
+      </div>
+      <div class="rm-field">
+        <label>ยอดคงเหลือหลังชำระ (บาท)</label>
+        <input type="number" id="rm-balance" inputmode="decimal">
+      </div>
+    </div>
+    <div class="rm-field">
+      <label>ผู้ชำระ</label>
+      <select id="rm-payer">
+        <option value="me">ฉัน</option>
+        <option value="dad">พ่อ</option>
+        <option value="mom">แม่</option>
+      </select>
+      <div class="rm-hint">ระบบเดาจากบัญชีที่ตัดในใบเสร็จ เปลี่ยนได้ถ้าไม่ตรง</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="receipt-cancel">ยกเลิก</button>
+      <button class="btn btn-primary" id="receipt-confirm">✓ ยืนยันบันทึก</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const ORIGINAL_PRINCIPAL = 3823247.00; // ยอดกู้เริ่มต้นตามสัญญา (28 เม.ย. 2559) ตรงกับแอพ SCB
 const ORIGINAL_DATE = '2016-04-28';
@@ -826,6 +955,7 @@ const ORIGINAL_DATE = '2016-04-28';
 const TRACKING_ANCHOR_BALANCE = 3553254.00; // ยอดคงเหลือก่อนรายการแรกที่บันทึกไว้ (= 3546070.86 + 7183.14 ตามใบเสร็จ 31 ส.ค. 2563)
 const TRACKING_ANCHOR_DATE = '2020-08-30';
 const ANNUAL_RATE = 0.028;
+
 
 // ตารางอัตราดอกเบี้ยตามประกาศปรับลดดอกเบี้ย (18 มี.ค. 2569)
 // ปีที่ 1-3 นับจาก 9 มี.ค. 2569 = 2.8% คงที่ / ปีที่ 4 เป็นต้นไป = MRR - 1.5% (ลอยตัว)
@@ -1778,6 +1908,11 @@ function render(){
       <div class="btn-row" style="margin-top:12px;">
         <button class="btn btn-primary" onclick="submitPayment()">บันทึกการผ่อน</button>
       </div>
+      <div class="receipt-upload-row">
+        <div class="ru-label">หรืออัปโหลดใบเสร็จ SCB (PDF ที่ปลดรหัสแล้ว) ให้แอพอ่านข้อมูลให้อัตโนมัติ</div>
+        <button class="btn-upload" id="receipt-upload-btn" onclick="document.getElementById('receipt-file-input').click()">📄 อัปโหลด</button>
+        <input type="file" id="receipt-file-input" accept="application/pdf" style="display:none" onchange="handleReceiptFile(event)">
+      </div>
     </div>
 
     <div class="section-title">ประวัติการผ่อนชำระ</div>
@@ -1819,6 +1954,204 @@ function render(){
   dateInput.addEventListener('input', () => { updateDateThai(); updatePreview(); });
   updateDateThai();
   updatePreview();
+}
+
+// ============================================================
+// อ่านใบเสร็จ SCB จาก PDF (ทำงานในเบราว์เซอร์ทั้งหมด ไม่ส่งไฟล์ขึ้นที่ใด)
+// ใช้ pdf.js แยกข้อความ แล้วจับคู่กับป้ายภาษาอังกฤษในวงเล็บ เช่น (Principal) (Interest) (Total) (Date)
+// เพราะข้อความไทยในใบเสร็จ SCB บางช่วงเป็นฟอนต์เข้ารหัสแบบ PUA ที่อ่านไม่ตรงตัวอักษรจริง
+// แต่ป้ายภาษาอังกฤษเป็นมาตรฐาน ASCII เสมอ จึงใช้เป็นจุดอ้างอิงที่เชื่อถือได้กว่า
+// ============================================================
+let pendingReceiptData = null;
+
+async function handleReceiptFile(event){
+  const file = event.target.files && event.target.files[0];
+  event.target.value = ''; // เคลียร์ค่า input ไว้ เผื่ออัปโหลดไฟล์เดิมซ้ำได้
+  if(!file) return;
+
+  if(typeof pdfjsLib === 'undefined'){
+    showToast('โหลดตัวอ่าน PDF ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+    return;
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const btn = document.getElementById('receipt-upload-btn');
+  if(btn){ btn.disabled = true; btn.textContent = 'กำลังอ่าน...'; }
+
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+
+    if(pdf.numPages > 1){
+      showToast(`ไฟล์นี้มี ${pdf.numPages} หน้า — แอพอ่านได้ทีละใบเสร็จ (หน้าแรก) เท่านั้น ถ้ามีหลายใบ กรุณาแยกไฟล์ก่อนอัปโหลด`);
+    }
+
+    const page = await pdf.getPage(1);
+    const content = await page.getTextContent();
+    const rawText = content.items.map(it => it.str).join(' ');
+
+    const parsed = parseSCBReceiptText(rawText);
+    showReceiptPreview(parsed);
+  }catch(err){
+    showToast('อ่านไฟล์ PDF ไม่สำเร็จ — ตรวจสอบว่าเป็นไฟล์ที่ปลดรหัสแล้ว และเป็น PDF ของใบเสร็จ SCB');
+    console.error('Receipt parse error:', err);
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = '📄 อัปโหลด'; }
+  }
+}
+
+function parseSCBReceiptText(text){
+  const clean = text.replace(/\s+/g, ' ');
+  const fields = {};
+  const warnings = [];
+
+  // วันที่ (Date) DD/MM/YYYY -- ปีในใบเสร็จ SCB เป็น ค.ศ. อยู่แล้ว ไม่ต้องแปลงจาก พ.ศ.
+  const dateMatch = clean.match(/\(Date\)\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+  if(dateMatch){
+    const [, dd, mm, yyyy] = dateMatch;
+    fields.date = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+  } else {
+    warnings.push('ไม่พบวันที่ในใบเสร็จ กรุณากรอกเอง');
+  }
+
+  // เงินต้น (Principal) ปรากฏ 2 ครั้ง: ครั้งที่ 1 = ตัดต้นงวดนี้, ครั้งที่ 2 = ยอดคงเหลือหลังชำระ
+  const principalNums = [...clean.matchAll(/\(Principal\)\s*([\d,]+\.\d{2})/gi)]
+    .map(m => parseFloat(m[1].replace(/,/g,'')));
+  if(principalNums.length >= 2){
+    fields.principalPaid = principalNums[0];
+    fields.balanceAfter = principalNums[1];
+  } else if(principalNums.length === 1){
+    fields.principalPaid = principalNums[0];
+    warnings.push('พบยอดเงินต้นแค่ค่าเดียว — กรุณาตรวจยอดคงเหลือเอง');
+  } else {
+    warnings.push('ไม่พบยอดเงินต้น/ยอดคงเหลือ กรุณากรอกเอง');
+  }
+
+  // ดอกเบี้ย (Interest) แต่ไม่เอา (Default Interest) — ตัดส่วน Default Interest ออกก่อนจับคู่ เพื่อไม่ปนกัน
+  const withoutDefault = clean.replace(/\(Default\s*Interest\)\s*[\d,]+\.\d{2}/gi, '');
+  const interestNums = [...withoutDefault.matchAll(/\(Interest\)\s*([\d,]+\.\d{2})/gi)]
+    .map(m => parseFloat(m[1].replace(/,/g,'')));
+  if(interestNums.length >= 1){
+    fields.interest = interestNums[0];
+  } else {
+    warnings.push('ไม่พบยอดดอกเบี้ย กรุณากรอกเอง');
+  }
+
+  // รวมเป็นเงิน (Total)
+  const totalMatch = clean.match(/\(Total\)\s*([\d,]+\.\d{2})/i);
+  if(totalMatch){
+    fields.amount = parseFloat(totalMatch[1].replace(/,/g,''));
+  } else if(fields.principalPaid != null && fields.interest != null){
+    fields.amount = Math.round((fields.principalPaid + fields.interest) * 100) / 100;
+    warnings.push('ไม่พบยอดชำระรวม — คำนวณจากเงินต้น+ดอกเบี้ยให้แทน');
+  } else {
+    warnings.push('ไม่พบยอดชำระรวม กรุณากรอกเอง');
+  }
+
+  // เดาผู้ชำระจากชื่อบัญชี/ช่องทางตัดเงินที่ปรากฏในใบเสร็จ (ปรับชื่อในวงเล็บได้ตามบัญชีจริงของครอบครัว)
+  if(/ENET/i.test(clean)) fields.payerGuess = 'me';
+  else if(/\bATS\b/i.test(clean)) fields.payerGuess = 'dad';
+
+  const ok = !!fields.date && fields.principalPaid != null && fields.balanceAfter != null;
+  return { ok, fields, warnings };
+}
+
+function showReceiptPreview(parsed){
+  pendingReceiptData = parsed;
+  const overlay = document.getElementById('receipt-overlay');
+  const warnBox = document.getElementById('receipt-warnings');
+
+  if(parsed.warnings.length > 0){
+    warnBox.innerHTML = `<div class="rm-warning">⚠️ ${parsed.warnings.join('<br>⚠️ ')}<br><br>ตรวจสอบและแก้ตัวเลขในช่องด้านล่างให้ถูกต้องก่อนกดยืนยัน</div>`;
+  } else {
+    warnBox.innerHTML = '';
+  }
+
+  document.getElementById('rm-date').value = parsed.fields.date || todayStr();
+  document.getElementById('rm-principal').value = parsed.fields.principalPaid != null ? parsed.fields.principalPaid.toFixed(2) : '';
+  document.getElementById('rm-interest').value = parsed.fields.interest != null ? parsed.fields.interest.toFixed(2) : '';
+  document.getElementById('rm-amount').value = parsed.fields.amount != null ? parsed.fields.amount.toFixed(2) : '';
+  document.getElementById('rm-balance').value = parsed.fields.balanceAfter != null ? parsed.fields.balanceAfter.toFixed(2) : '';
+  document.getElementById('rm-payer').value = parsed.fields.payerGuess || selectedPayer || 'me';
+
+  overlay.classList.add('show');
+
+  const cancelBtn = document.getElementById('receipt-cancel');
+  const confirmBtn = document.getElementById('receipt-confirm');
+  function close(){
+    overlay.classList.remove('show');
+    cancelBtn.removeEventListener('click', onCancel);
+    confirmBtn.removeEventListener('click', onConfirm);
+  }
+  function onCancel(){ close(); pendingReceiptData = null; }
+  function onConfirm(){ close(); confirmReceiptImport(); }
+  cancelBtn.addEventListener('click', onCancel);
+  confirmBtn.addEventListener('click', onConfirm);
+}
+
+async function confirmReceiptImport(){
+  const date = document.getElementById('rm-date').value;
+  const principalPaid = parseFloat(document.getElementById('rm-principal').value);
+  const interest = parseFloat(document.getElementById('rm-interest').value) || 0;
+  const amount = parseFloat(document.getElementById('rm-amount').value);
+  const balanceAfter = parseFloat(document.getElementById('rm-balance').value);
+  const payer = document.getElementById('rm-payer').value;
+
+  if(!date || isNaN(principalPaid) || isNaN(amount) || isNaN(balanceAfter)){
+    showToast('กรุณากรอกข้อมูลให้ครบถ้วนก่อนยืนยัน');
+    return;
+  }
+
+  // กันบันทึกซ้ำ: เช็ครายการที่มีวันที่และยอดคงเหลือตรงกันเป๊ะอยู่แล้วในระบบ
+  const dup = state.payments.find(p => p.date === date && Math.abs(p.balanceAfter - balanceAfter) < 0.01);
+  if(dup){
+    showToast('ดูเหมือนมีรายการวันนี้+ยอดนี้อยู่แล้ว — ไม่ได้บันทึกซ้ำ');
+    return;
+  }
+
+  // ใบเสร็จจริง = ข้อมูลล็อก เหมือนกับ SEED_PAYMENTS (ห้ามลบ ป้องกันข้อมูลทางการเงินจริงถูกแก้/ลบโดยไม่ตั้งใจ)
+  const newPayment = {
+    id: genId(),
+    date: date,
+    amount: Math.round(amount*100)/100,
+    interest: Math.round(interest*100)/100,
+    principalPaid: Math.round(principalPaid*100)/100,
+    balanceAfter: Math.round(balanceAfter*100)/100,
+    payer: payer,
+    locked: true,
+    source: 'receipt-upload'
+  };
+
+  const pass = getSavedPass();
+  if(isConfigured() && pass){
+    showToast('กำลังบันทึก...');
+    try{
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'add', pass: pass, payment: newPayment })
+      });
+      const data = await res.json();
+      if(!data.ok){
+        showToast(data.error || 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+        return;
+      }
+      syncStatus.online = true;
+      syncStatus.error = null;
+      syncStatus.lastSync = new Date();
+    }catch(err){
+      showToast('ไม่มีอินเทอร์เน็ต บันทึกไม่สำเร็จ ลองใหม่เมื่อมีเน็ต');
+      return;
+    }
+  }
+
+  state.payments.push(newPayment);
+  recomputeFromPayments(state.payments); // จัดเรียงตามวันที่ใหม่ เผื่อใบเสร็จนี้เป็นรายการเก่าที่เติมช่องว่างย้อนหลัง
+
+  await saveState();
+  render();
+  pendingReceiptData = null;
+  showToast(isConfigured() && pass ? 'นำเข้าจากใบเสร็จเรียบร้อย ✓ ซิงค์กับทุกคนแล้ว' : 'นำเข้าจากใบเสร็จเรียบร้อย ✓');
 }
 
 async function submitPayment(){
