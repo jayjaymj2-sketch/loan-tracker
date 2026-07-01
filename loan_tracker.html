@@ -44,7 +44,37 @@ body{
   color:var(--ink);
   padding:0;
   -webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:contain; /* กันเบราว์เซอร์ดึงเอฟเฟกต์ยืด/รีเฟรชของตัวเองมาชนกับตัวที่เราทำเอง */
 }
+/* แถบรูดลงเพื่อรีเฟรช (ใช้แทนท่ารีเฟรชของเบราว์เซอร์ ซึ่งหายไปเมื่อเปิดแอพแบบติดตั้งจากโฮมจอ) */
+.ptr-indicator{
+  position:fixed;
+  top:0; left:0; right:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:60px;
+  margin-top:-60px;
+  color:var(--gold-700);
+  font-family:'Chakra Petch', sans-serif;
+  font-size:12.5px;
+  font-weight:600;
+  gap:8px;
+  z-index:200;
+  pointer-events:none;
+  transition:margin-top 0.2s ease;
+}
+.ptr-indicator .ptr-spinner{
+  width:16px; height:16px;
+  border-radius:50%;
+  border:2px solid rgba(200,151,48,0.25);
+  border-top-color:var(--gold-500);
+  transition:transform 0.05s linear;
+}
+.ptr-indicator.ptr-loading .ptr-spinner{
+  animation:ptr-spin 0.7s linear infinite;
+}
+@keyframes ptr-spin{ to{ transform:rotate(360deg); } }
 .wrap{
   max-width:480px;
   margin:0 auto;
@@ -283,37 +313,6 @@ body{
   border-color:var(--gold-500);
 }
 .form-row input::placeholder{ color:rgba(90,99,120,0.4); }
-.payer-select{
-  display:flex;
-  gap:8px;
-}
-.payer-chip{
-  flex:1;
-  padding:11px 8px;
-  border-radius:10px;
-  border:1px solid rgba(180,150,80,0.25);
-  background:var(--paper);
-  color:var(--ink-soft);
-  font-family:'Sarabun', sans-serif;
-  font-size:14px;
-  font-weight:500;
-  cursor:pointer;
-  transition:all 0.15s;
-}
-.payer-chip.active{
-  background:rgba(227,185,74,0.18);
-  border-color:var(--gold-500);
-  color:var(--gold-700);
-  font-weight:600;
-}
-.payer-tag{
-  display:inline-block;
-  font-size:10.5px;
-  font-weight:600;
-  padding:2px 8px;
-  border-radius:20px;
-  margin-right:6px;
-}
 .btn-row{
   display:flex;
   gap:10px;
@@ -872,6 +871,7 @@ body{
 </head>
 <body>
 <div id="gate-root"></div>
+<div class="ptr-indicator" id="ptr-indicator"><span class="ptr-spinner"></span><span id="ptr-text">ปล่อยเพื่อรีเฟรช</span></div>
 <div class="wrap">
 
   <div class="header">
@@ -933,15 +933,6 @@ body{
         <label>ยอดคงเหลือหลังชำระ (บาท)</label>
         <input type="number" id="rm-balance" inputmode="decimal">
       </div>
-    </div>
-    <div class="rm-field">
-      <label>ผู้ชำระ</label>
-      <select id="rm-payer">
-        <option value="me">ฉัน</option>
-        <option value="dad">พ่อ</option>
-        <option value="mom">แม่</option>
-      </select>
-      <div class="rm-hint">ระบบเดาจากบัญชีที่ตัดในใบเสร็จ เปลี่ยนได้ถ้าไม่ตรง</div>
     </div>
     <div class="btn-row">
       <button class="btn btn-secondary" id="receipt-cancel">ยกเลิก</button>
@@ -1048,7 +1039,7 @@ const PAYERS = {
 };
 
 let state = null;
-let selectedPayer = 'me';
+// (ไม่มีการเก็บ "ผู้ชำระ" อีกต่อไป — ยกเลิกตามที่ต้องการ)
 
 const SEED_PAYMENTS = [
   {"date":"2020-08-31","amount":18500.0,"interest":11316.86,"principalPaid":7183.14,"balanceAfter":3546070.86,"payer":"dad","locked":true},
@@ -1352,6 +1343,76 @@ async function manualSync(){
   const ok = await syncFromServer();
   render();
   showToast(ok ? 'ซิงค์ข้อมูลล่าสุดแล้ว ✓' : (syncStatus.error || 'ซิงค์ไม่สำเร็จ'));
+}
+
+// ---------- รูดลงบนสุดของจอเพื่อรีเฟรช (Pull-to-refresh) ----------
+// จำเป็นเพราะเมื่อเปิดแอพแบบ "ติดตั้งจากโฮมจอ" (standalone) ท่ารูดรีเฟรชของตัวเบราว์เซอร์เองจะหายไป
+// (มันเป็นฟีเจอร์ของกรอบเบราว์เซอร์ ไม่ใช่ของหน้าเว็บ พอไม่มีกรอบเบราว์เซอร์ ท่านี้ก็หายไปด้วย)
+// เลยต้องทำท่ารูดรีเฟรชเองในแอพ โดยดึงข้อมูลใหม่จากระบบกลางเหมือนปุ่ม "↻ ซิงค์"
+function setupPullToRefresh(){
+  const indicator = document.getElementById('ptr-indicator');
+  const textEl = document.getElementById('ptr-text');
+  if(!indicator || !textEl) return;
+
+  const THRESHOLD = 70; // px ที่ต้องรูดลงถึงจะถือว่า "ปล่อยแล้วรีเฟรช"
+  const MAX_PULL = 110;
+  let startY = 0;
+  let pulling = false;
+  let ready = false;
+
+  function scrollTopNow(){
+    return window.scrollY || document.documentElement.scrollTop || 0;
+  }
+
+  window.addEventListener('touchstart', (e) => {
+    if(scrollTopNow() > 0){ pulling = false; return; }
+    startY = e.touches[0].clientY;
+    pulling = true;
+    ready = false;
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if(!pulling) return;
+    const dy = e.touches[0].clientY - startY;
+    if(dy <= 0 || scrollTopNow() > 0){
+      pulling = false;
+      indicator.style.marginTop = '-60px';
+      return;
+    }
+    e.preventDefault(); // เข้าควบคุมท่านี้เอง แทนพฤติกรรมยืด/รีเฟรชเริ่มต้นของเบราว์เซอร์
+    const pull = Math.min(dy, MAX_PULL);
+    indicator.style.marginTop = (pull - 60) + 'px';
+    ready = pull >= THRESHOLD;
+    textEl.textContent = ready ? 'ปล่อยเพื่อรีเฟรช' : 'รูดลงเพื่อรีเฟรช';
+  }, { passive: false });
+
+  window.addEventListener('touchend', () => {
+    if(!pulling) return;
+    pulling = false;
+    if(ready){
+      indicator.style.marginTop = '0px';
+      indicator.classList.add('ptr-loading');
+      textEl.textContent = 'กำลังรีเฟรช...';
+      doPullRefresh(indicator, textEl);
+    } else {
+      indicator.style.marginTop = '-60px';
+    }
+    ready = false;
+  }, { passive: true });
+}
+
+async function doPullRefresh(indicator, textEl){
+  try{
+    if(isConfigured() && getSavedPass()){
+      await syncFromServer();
+    }
+    render();
+  }catch(e){}
+  setTimeout(() => {
+    indicator.classList.remove('ptr-loading');
+    indicator.style.marginTop = '-60px';
+    textEl.textContent = 'รูดลงเพื่อรีเฟรช';
+  }, 400);
 }
 
 function registerServiceWorker(){
@@ -2023,7 +2084,7 @@ async function handleReceiptFile(event){
 }
 
 function parseSCBReceiptText(text){
-  const clean = text.replace(/\s+/g, ' ');
+  const clean = text.replace(/\s+/g, ' ').trim();
   const fields = {};
   const warnings = [];
 
@@ -2036,30 +2097,46 @@ function parseSCBReceiptText(text){
     warnings.push('ไม่พบวันที่ในใบเสร็จ กรุณากรอกเอง');
   }
 
-  // เงินต้น (Principal) ปรากฏ 2 ครั้ง: ครั้งที่ 1 = ตัดต้นงวดนี้, ครั้งที่ 2 = ยอดคงเหลือหลังชำระ
-  const principalNums = [...clean.matchAll(/\(Principal\)\s*([\d,]+\.\d{2})/gi)]
+  // ==========================================================================
+  // เงินต้น/ดอกเบี้ย/ยอดคงเหลือ: pdf.js อ่านลำดับข้อความได้ 2 แบบต่างกันไปตามไฟล์
+  // แบบ A (inline): "(Principal) 18,883.47" ป้ายตามด้วยค่าทันที
+  // แบบ B (batched): "(Principal) (Interest) (Principal) (Interest) (Baht) 18,883.47 716.53 1,849,208.57 0.00"
+  //                   ป้ายทั้งหมดมาก่อน แล้วค่อยตามด้วยตัวเลขทั้งหมด (พบใน pdf.js จริงของ SCB)
+  // ลองแบบ A ก่อน ถ้าไม่เจอค่อย fallback ไปแบบ B
+  // ==========================================================================
+  const principalInline = [...clean.matchAll(/\(Principal\)\s*([\d,]+\.\d{2})/gi)]
     .map(m => parseFloat(m[1].replace(/,/g,'')));
-  if(principalNums.length >= 2){
-    fields.principalPaid = principalNums[0];
-    fields.balanceAfter = principalNums[1];
-  } else if(principalNums.length === 1){
-    fields.principalPaid = principalNums[0];
-    warnings.push('พบยอดเงินต้นแค่ค่าเดียว — กรุณาตรวจยอดคงเหลือเอง');
+  const withoutDefaultInline = clean.replace(/\(Default\s*interest\)\s*[\d,]+\.\d{2}/gi, '');
+  const interestInline = [...withoutDefaultInline.matchAll(/\(Interest\)\s*([\d,]+\.\d{2})/gi)]
+    .map(m => parseFloat(m[1].replace(/,/g,'')));
+
+  if(principalInline.length >= 2 && interestInline.length >= 1){
+    // แบบ A: label+ค่าติดกัน
+    fields.principalPaid = principalInline[0];
+    fields.balanceAfter = principalInline[1];
+    fields.interest = interestInline[0];
   } else {
-    warnings.push('ไม่พบยอดเงินต้น/ยอดคงเหลือ กรุณากรอกเอง');
+    // แบบ B: หาแพทเทิร์น "(Principal)...(Interest)...(Principal)...(Interest)" ตามด้วยตัวเลข 4 ค่าติดกัน
+    // ลำดับตัวเลข 4 ค่านั้นคือ [เงินต้นที่ตัดงวดนี้, ดอกเบี้ยงวดนี้, เงินต้นคงเหลือ, ดอกเบี้ยคงเหลือ]
+    const batchedMatch = clean.match(
+      /\(Principal\)[^(]*\(Interest\)[^(]*\(Principal\)[^(]*\(Interest\)[^\d]*([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/i
+    );
+    if(batchedMatch){
+      fields.principalPaid = parseFloat(batchedMatch[1].replace(/,/g,''));
+      fields.interest = parseFloat(batchedMatch[2].replace(/,/g,''));
+      fields.balanceAfter = parseFloat(batchedMatch[3].replace(/,/g,''));
+      // batchedMatch[4] = ดอกเบี้ยคงเหลือ (ปกติ 0.00) ไม่ได้ใช้
+    }
   }
 
-  // ดอกเบี้ย (Interest) แต่ไม่เอา (Default Interest) — ตัดส่วน Default Interest ออกก่อนจับคู่ เพื่อไม่ปนกัน
-  const withoutDefault = clean.replace(/\(Default\s*Interest\)\s*[\d,]+\.\d{2}/gi, '');
-  const interestNums = [...withoutDefault.matchAll(/\(Interest\)\s*([\d,]+\.\d{2})/gi)]
-    .map(m => parseFloat(m[1].replace(/,/g,'')));
-  if(interestNums.length >= 1){
-    fields.interest = interestNums[0];
-  } else {
+  if(fields.principalPaid == null || fields.balanceAfter == null){
+    warnings.push('ไม่พบยอดเงินต้น/ยอดคงเหลือ กรุณากรอกเอง');
+  }
+  if(fields.interest == null){
     warnings.push('ไม่พบยอดดอกเบี้ย กรุณากรอกเอง');
   }
 
-  // รวมเป็นเงิน (Total)
+  // รวมเป็นเงิน (Total) — เป็นป้ายเดี่ยว+ค่าเดี่ยว ไม่มีปัญหาเรื่องลำดับข้อความเหมือนข้างบน
   const totalMatch = clean.match(/\(Total\)\s*([\d,]+\.\d{2})/i);
   if(totalMatch){
     fields.amount = parseFloat(totalMatch[1].replace(/,/g,''));
@@ -2069,10 +2146,6 @@ function parseSCBReceiptText(text){
   } else {
     warnings.push('ไม่พบยอดชำระรวม กรุณากรอกเอง');
   }
-
-  // เดาผู้ชำระจากชื่อบัญชี/ช่องทางตัดเงินที่ปรากฏในใบเสร็จ (ปรับชื่อในวงเล็บได้ตามบัญชีจริงของครอบครัว)
-  if(/ENET/i.test(clean)) fields.payerGuess = 'me';
-  else if(/\bATS\b/i.test(clean)) fields.payerGuess = 'dad';
 
   const ok = !!fields.date && fields.principalPaid != null && fields.balanceAfter != null;
   return { ok, fields, warnings };
@@ -2094,7 +2167,6 @@ function showReceiptPreview(parsed){
   document.getElementById('rm-interest').value = parsed.fields.interest != null ? parsed.fields.interest.toFixed(2) : '';
   document.getElementById('rm-amount').value = parsed.fields.amount != null ? parsed.fields.amount.toFixed(2) : '';
   document.getElementById('rm-balance').value = parsed.fields.balanceAfter != null ? parsed.fields.balanceAfter.toFixed(2) : '';
-  document.getElementById('rm-payer').value = parsed.fields.payerGuess || selectedPayer || 'me';
 
   overlay.classList.add('show');
 
@@ -2117,7 +2189,6 @@ async function confirmReceiptImport(){
   const interest = parseFloat(document.getElementById('rm-interest').value) || 0;
   const amount = parseFloat(document.getElementById('rm-amount').value);
   const balanceAfter = parseFloat(document.getElementById('rm-balance').value);
-  const payer = document.getElementById('rm-payer').value;
 
   if(!date || isNaN(principalPaid) || isNaN(amount) || isNaN(balanceAfter)){
     showToast('กรุณากรอกข้อมูลให้ครบถ้วนก่อนยืนยัน');
@@ -2139,7 +2210,7 @@ async function confirmReceiptImport(){
     interest: Math.round(interest*100)/100,
     principalPaid: Math.round(principalPaid*100)/100,
     balanceAfter: Math.round(balanceAfter*100)/100,
-    payer: payer,
+    payer: '', // ไม่เก็บผู้ชำระอีกต่อไป (คงคอลัมน์ไว้เพื่อความเข้ากันได้กับ Google Sheet เดิม)
     locked: true,
     source: 'receipt-upload'
   };
@@ -2204,7 +2275,7 @@ async function submitPayment(){
     interest: Math.round(interest*100)/100,
     principalPaid: Math.round(principalPaid*100)/100,
     balanceAfter: Math.round(newBalance*100)/100,
-    payer: selectedPayer,
+    payer: '', // ไม่เก็บผู้ชำระอีกต่อไป (คงคอลัมน์ไว้เพื่อความเข้ากันได้กับ Google Sheet เดิม)
     locked: false,
     createdAt: new Date().toISOString() // ใช้เป็นจุดอ้างอิงว่า "เป็นรายการใหม่" สำหรับการอนุญาตให้ลบได้
   };
@@ -2363,6 +2434,7 @@ async function doDeletePayment(idx){
   await loadState();
   render();
   registerServiceWorker();
+  setupPullToRefresh();
 
   if(!isConfigured()){
     return; // ยังไม่ได้ตั้งค่า Apps Script URL -> ใช้แอพแบบในเครื่องเดียวไปก่อน (ดูคู่มือตั้งค่า.md)
