@@ -49,7 +49,7 @@ body{
 /* แถบรูดลงเพื่อรีเฟรช (ใช้แทนท่ารีเฟรชของเบราว์เซอร์ ซึ่งหายไปเมื่อเปิดแอพแบบติดตั้งจากโฮมจอ) */
 .ptr-indicator{
   position:fixed;
-  top:0; left:0; right:0;
+  top:env(safe-area-inset-top, 0px); left:0; right:0;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -79,6 +79,7 @@ body{
   max-width:480px;
   margin:0 auto;
   padding:24px 18px 60px;
+  padding-top:calc(24px + env(safe-area-inset-top, 0px)); /* กันหัวแอพโดนบัง status bar/รอยบากของ iPhone ตอนเปิดแบบติดตั้งจากโฮมจอ */
 }
 .header{
   text-align:center;
@@ -2430,11 +2431,42 @@ async function doDeletePayment(idx){
   showToast('ลบรายการแล้ว');
 }
 
+// ---------- ซิงค์อัตโนมัติเมื่อกลับมาเปิดแอพอีกครั้ง ----------
+// สำคัญมากสำหรับแอพที่ติดตั้งจากโฮมจอ (โดยเฉพาะ iOS): เวลาสลับออกไปแล้วกลับมาเปิดใหม่
+// ระบบมักจะ "แช่แข็ง" หน้าเดิมไว้ในหน่วยความจำ ไม่โหลดใหม่ทั้งหน้า จึงไม่มีการดึงข้อมูลล่าสุดให้เอง
+// ต้องดักจับตอนแอพ "กลับมาโฟกัส/มองเห็นได้" แล้วสั่งซิงค์ข้อมูลใหม่เองตรงนี้
+let lastAutoSyncAt = 0;
+const AUTO_SYNC_MIN_GAP_MS = 15000; // กันซิงค์รัวเกินไปถ้าสลับแอพไปมาถี่ๆ
+
+async function autoResyncIfNeeded(){
+  if(!isConfigured() || !getSavedPass()) return;
+  const now = Date.now();
+  if(now - lastAutoSyncAt < AUTO_SYNC_MIN_GAP_MS) return;
+  lastAutoSyncAt = now;
+  const ok = await syncFromServer();
+  render();
+  if(ok) showToast('อัปเดตข้อมูลล่าสุดแล้ว ✓');
+}
+
+function setupAutoResync(){
+  // เวลาสลับกลับมาที่แท็บ/แอพนี้ (จากโฮมจอ, สลับแอพ, หรือสลับแท็บ)
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') autoResyncIfNeeded();
+  });
+  // เวลาเบราว์เซอร์ดึงหน้าเดิมจาก back-forward cache กลับมาโชว์ (พบบ่อยใน Safari/iOS)
+  window.addEventListener('pageshow', (e) => {
+    if(e.persisted) autoResyncIfNeeded();
+  });
+  // เผื่อกรณีกลับมาโฟกัสหน้าต่าง/แอพโดยตรง
+  window.addEventListener('focus', () => autoResyncIfNeeded());
+}
+
 (async function init(){
   await loadState();
   render();
   registerServiceWorker();
   setupPullToRefresh();
+  setupAutoResync();
 
   if(!isConfigured()){
     return; // ยังไม่ได้ตั้งค่า Apps Script URL -> ใช้แอพแบบในเครื่องเดียวไปก่อน (ดูคู่มือตั้งค่า.md)
