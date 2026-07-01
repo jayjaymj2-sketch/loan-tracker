@@ -1417,9 +1417,21 @@ async function doPullRefresh(indicator, textEl){
 }
 
 function registerServiceWorker(){
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
-  }
+  if(!('serviceWorker' in navigator)) return;
+
+  // เมื่อ Service Worker เวอร์ชันใหม่เข้าควบคุมหน้าเว็บ (activate สำเร็จ) ให้รีโหลดหน้าอัตโนมัติ 1 ครั้ง
+  // เพื่อดึงโค้ด/ข้อมูลชุดใหม่มาแสดงทันที แก้ปัญหา "ต้องเปิด 2 รอบถึงจะเห็นของใหม่" ในอนาคต
+  let hasReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(hasReloaded) return; // กันรีโหลดวนซ้ำ
+    hasReloaded = true;
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.register('./service-worker.js').then((reg) => {
+    // เช็คอัปเดตทันทีทุกครั้งที่เปิดแอพ แทนที่จะรอให้เบราว์เซอร์เช็คเองตามรอบของมัน
+    reg.update().catch(()=>{});
+  }).catch(()=>{});
 }
 
 
