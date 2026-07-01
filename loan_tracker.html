@@ -1993,6 +1993,26 @@ async function handleReceiptFile(event){
     const rawText = content.items.map(it => it.str).join(' ');
 
     const parsed = parseSCBReceiptText(rawText);
+
+    // ถ้าอ่านข้อมูลไม่ได้เลย แสดงข้อความดิบเพื่อให้ส่งมา debug
+    if(!parsed.ok){
+      const debugEl = document.createElement('div');
+      debugEl.id = 'pdf-debug-box';
+      debugEl.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;padding:16px;overflow:auto;display:flex;align-items:flex-start;justify-content:center;';
+      const rawEscaped = rawText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      debugEl.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:20px;max-width:640px;width:100%;font-size:12px;line-height:1.5;">
+          <div style="font-size:15px;font-weight:700;color:#16315a;margin-bottom:4px;">📋 ข้อความดิบที่ pdf.js อ่านได้</div>
+          <div style="color:#666;font-size:11px;margin-bottom:12px;">กดปุ่ม "ก๊อปทั้งหมด" แล้วส่งข้อความนี้ให้ Claude เพื่อให้แก้ไขตัวอ่านให้ตรงกับ PDF จริงของคุณ</div>
+          <pre id="pdf-raw-text" style="white-space:pre-wrap;word-break:break-all;background:#f5f5f5;padding:12px;border-radius:8px;max-height:55vh;overflow:auto;font-size:10.5px;border:1px solid #ddd;">${rawEscaped}</pre>
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button onclick="navigator.clipboard.writeText(document.getElementById('pdf-raw-text').textContent).then(()=>{this.textContent='ก๊อปแล้ว ✓';setTimeout(()=>this.textContent='📋 ก๊อปทั้งหมด',2000)})" style="flex:1;padding:10px;background:#16315a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12.5px;">📋 ก๊อปทั้งหมด</button>
+            <button onclick="document.getElementById('pdf-debug-box').remove()" style="padding:10px 16px;background:#eee;color:#333;border:none;border-radius:8px;cursor:pointer;">ปิด</button>
+          </div>
+        </div>`;
+      document.body.appendChild(debugEl);
+    }
+
     showReceiptPreview(parsed);
   }catch(err){
     showToast('อ่านไฟล์ PDF ไม่สำเร็จ — ตรวจสอบว่าเป็นไฟล์ที่ปลดรหัสแล้ว และเป็น PDF ของใบเสร็จ SCB');
