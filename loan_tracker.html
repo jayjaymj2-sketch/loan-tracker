@@ -1026,12 +1026,9 @@ const ANNUAL_INTEREST_HISTORY = [
   { year: 2024, amount: 112593.76, source: 'หนังสือรับรองดอกเบี้ย' },
   { year: 2025, amount: 90709.01,  source: 'หนังสือรับรองดอกเบี้ย (ทั้งปี)' },
 ];
-// ดอกเบี้ย ม.ค.-มิ.ย. 2026 คำนวณจากใบเสร็จจริง เพราะยังไม่มีหนังสือรับรองปี 2569 ออกมา
-const INTEREST_2026_PARTIAL = 32462.45;
-const INTEREST_2026_PARTIAL_NOTE = 'ม.ค.-มิ.ย. 2569 จากใบเสร็จจริง (ยังไม่มีหนังสือรับรองทางการ)'; // ปี พ.ศ.
-
-const LIFETIME_INTEREST_TOTAL = ANNUAL_INTEREST_HISTORY.reduce((s,y)=>s+y.amount, 0) + INTEREST_2026_PARTIAL;
-const LIFETIME_INTEREST_AS_OF = '2026-06-25'; // ข้อมูลล่าสุดที่ใช้คำนวณ ณ วันนี้
+// ปีที่ยังไม่มีหนังสือรับรองดอกเบี้ย จะรวมจากช่อง interest ของรายการชำระจริงโดยอัตโนมัติ
+// เมื่อเพิ่มรายการใหม่หรือซิงค์ข้อมูลจากระบบกลาง ยอดรายปีและยอดสะสมจะอัปเดตตามทันที
+const LAST_CERTIFIED_INTEREST_YEAR = Math.max(...ANNUAL_INTEREST_HISTORY.map(y => y.year));
 
 const PAYERS = {
   me:  { label: 'ฉัน',  short: 'ฉัน',  color: '#e8cd7a' },
@@ -1165,6 +1162,41 @@ function thaiDate(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
   const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()+543}`;
+}
+
+// รวมดอกเบี้ยรายปี: ใช้ยอดจากหนังสือรับรองสำหรับปีที่ปิดยอดแล้ว
+// และใช้รายการชำระจริงสำหรับปีถัดจากหนังสือรับรองล่าสุด เพื่อไม่ให้ยอดปัจจุบันหยุดค้างอยู่ที่ค่าคงที่
+function buildAnnualInterestSummary(){
+  const summary = ANNUAL_INTEREST_HISTORY.map(y => ({ ...y, certified: true }));
+  const actualByYear = {};
+
+  for(const p of state.payments){
+    const year = parseInt(String(p.date || '').slice(0, 4), 10);
+    const interest = Number(p.interest);
+    if(!Number.isFinite(year) || year <= LAST_CERTIFIED_INTEREST_YEAR || !Number.isFinite(interest)) continue;
+
+    if(!actualByYear[year]){
+      actualByYear[year] = { year, amount: 0, paymentCount: 0, lastPaymentDate: '' };
+    }
+    actualByYear[year].amount += interest;
+    actualByYear[year].paymentCount += 1;
+    if(!actualByYear[year].lastPaymentDate || p.date > actualByYear[year].lastPaymentDate){
+      actualByYear[year].lastPaymentDate = p.date;
+    }
+  }
+
+  for(const year of Object.keys(actualByYear).map(Number).sort((a,b)=>a-b)){
+    const item = actualByYear[year];
+    summary.push({
+      year,
+      amount: Math.round(item.amount * 100) / 100,
+      source: `จากรายการชำระจริง ${item.paymentCount} รายการ · ถึง ${thaiDate(item.lastPaymentDate)}`,
+      lastPaymentDate: item.lastPaymentDate,
+      certified: false
+    });
+  }
+
+  return summary;
 }
 
 async function loadState(){
@@ -1769,6 +1801,10 @@ function render(){
   const progress = Math.max(0, Math.min(100, (1 - balance/state.originalPrincipal) * 100));
   const dInterest = dailyInterest(balance, todayStr());
   const mInterest = monthlyInterestEstimate(balance);
+  const annualInterestSummary = buildAnnualInterestSummary();
+  const lifetimeInterestTotal = annualInterestSummary.reduce((sum, y) => sum + y.amount, 0);
+  const latestActualInterest = annualInterestSummary.slice().reverse().find(y => !y.certified && y.lastPaymentDate);
+  const lifetimeInterestAsOf = latestActualInterest ? latestActualInterest.lastPaymentDate : '';
 
   // ยอดผ่อนเฉลี่ย/เดือน: ใช้ "12 เดือนล่าสุด" เพื่อสะท้อนกำลังผ่อนปัจจุบัน
   // (ถ้าเฉลี่ยทุกเดือนตั้งแต่อดีต ช่วงที่เคยผ่อนน้อยจะถ่วงให้ประมาณการช้ากว่าความจริง)
@@ -1797,8 +1833,6 @@ function render(){
     payoffText = 'ไม่หมด';
     payoffSub = 'ยอดผ่อนน้อยกว่าดอกเบี้ยต่อเดือน';
   }
-
-  const totalInterestPaid = state.payments.reduce((s,p)=>s+(p.interest||0),0);
 
   // จัดกลุ่มประวัติตามปี (พ.ศ.) เป็นแบบพับเก็บได้ เพื่อไม่ให้รายการยาวเกินไป
   let historyHtml;
@@ -1921,7 +1955,7 @@ function render(){
     <div class="stats-grid">
       <div class="stat-card">
         <div class="icon-row"><span class="label">ผ่อนแล้วทั้งหมด (ต้น+ดอก)</span></div>
-        <div class="value">${fmt((state.originalPrincipal - balance) + LIFETIME_INTEREST_TOTAL, 0)}<small>บาท</small></div>
+        <div class="value">${fmt((state.originalPrincipal - balance) + lifetimeInterestTotal, 0)}<small>บาท</small></div>
       </div>
       <div class="stat-card">
         <div class="icon-row"><span class="label">ผ่อนต้นเงินไปแล้ว</span></div>
@@ -1929,7 +1963,7 @@ function render(){
       </div>
       <div class="stat-card">
         <div class="icon-row"><span class="label">ดอกเบี้ยจ่ายไปแล้วทั้งหมด</span></div>
-        <div class="value">${fmt(LIFETIME_INTEREST_TOTAL, 0)}<small>บาท</small></div>
+        <div class="value">${fmt(lifetimeInterestTotal, 0)}<small>บาท</small></div>
       </div>
       <div class="stat-card">
         <div class="icon-row"><span class="label">คาดว่าหมดหนี้ใน</span></div>
@@ -1947,7 +1981,7 @@ function render(){
     <div class="section-title">สรุปดอกเบี้ยรายปี</div>
     <div class="form-card" style="padding:14px 16px;">
       <div style="display:flex; flex-direction:column; gap:0;">
-        ${ANNUAL_INTEREST_HISTORY.map(y => `
+        ${annualInterestSummary.map(y => `
           <div style="display:flex; justify-content:space-between; align-items:baseline; padding:8px 0; border-bottom:1px solid rgba(180,150,80,0.12);">
             <span style="font-size:13px; color:var(--navy-800); font-weight:500;">ปี ${y.year + 543}</span>
             <span style="text-align:right;">
@@ -1956,16 +1990,9 @@ function render(){
             </span>
           </div>
         `).join('')}
-        <div style="display:flex; justify-content:space-between; align-items:baseline; padding:8px 0; border-bottom:1px solid rgba(180,150,80,0.12);">
-          <span style="font-size:13px; color:var(--navy-800); font-weight:500;">ปี 2569 (ม.ค.-มิ.ย.)</span>
-          <span style="text-align:right;">
-            <span style="font-family:'Chakra Petch', sans-serif; font-size:14px; font-weight:600; color:var(--gold-700);">${fmt(INTEREST_2026_PARTIAL,2)} บาท</span>
-            <div style="font-size:10px; color:var(--ink-soft); margin-top:1px;">${INTEREST_2026_PARTIAL_NOTE}</div>
-          </span>
-        </div>
         <div style="display:flex; justify-content:space-between; align-items:baseline; padding:12px 0 2px;">
-          <span style="font-family:'Chakra Petch', sans-serif; font-size:14px; font-weight:600; color:var(--navy-800);">รวมทั้งหมด (2560–มิ.ย. 2569)</span>
-          <span style="font-family:'Chakra Petch', sans-serif; font-size:18px; font-weight:700; color:var(--gold-700);">${fmt(LIFETIME_INTEREST_TOTAL,2)} บาท</span>
+          <span style="font-family:'Chakra Petch', sans-serif; font-size:14px; font-weight:600; color:var(--navy-800);">รวมทั้งหมด${lifetimeInterestAsOf ? `ถึง ${thaiDate(lifetimeInterestAsOf)}` : ''}</span>
+          <span style="font-family:'Chakra Petch', sans-serif; font-size:18px; font-weight:700; color:var(--gold-700);">${fmt(lifetimeInterestTotal,2)} บาท</span>
         </div>
       </div>
     </div>
