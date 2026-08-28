@@ -233,6 +233,108 @@ body{
   margin-left:3px;
 }
 
+/* Payoff estimate — full-width focal card */
+.payoff-card{
+  background:linear-gradient(145deg, var(--navy-700) 0%, var(--navy-900) 100%);
+  border:1px solid rgba(227,185,74,0.42);
+  border-radius:20px;
+  padding:22px 22px 20px;
+  margin-bottom:16px;
+  color:var(--white);
+  box-shadow:0 10px 30px rgba(10,22,40,0.16);
+  position:relative;
+  overflow:hidden;
+  text-align:center;
+}
+.payoff-card::before{
+  content:'';
+  position:absolute;
+  width:190px;
+  height:190px;
+  top:-100px;
+  right:-65px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(227,185,74,0.22), transparent 68%);
+  pointer-events:none;
+}
+.payoff-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  position:relative;
+}
+.payoff-title{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:13px;
+  font-weight:600;
+  color:var(--gold-300);
+  letter-spacing:0.3px;
+  text-align:left;
+}
+.payoff-months{
+  flex:0 0 auto;
+  font-family:'Chakra Petch', sans-serif;
+  font-size:11.5px;
+  font-weight:600;
+  color:var(--gold-300);
+  background:rgba(227,185,74,0.12);
+  border:1px solid rgba(227,185,74,0.24);
+  border-radius:20px;
+  padding:5px 10px;
+}
+.payoff-years{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:46px;
+  line-height:1;
+  font-weight:700;
+  color:var(--white);
+  letter-spacing:-0.5px;
+  margin:19px 0 18px;
+  position:relative;
+}
+.payoff-date-box{
+  padding:13px 14px 12px;
+  border-radius:13px;
+  background:rgba(255,255,255,0.075);
+  border:1px solid rgba(255,255,255,0.1);
+  position:relative;
+}
+.payoff-date-label{
+  font-size:11.5px;
+  color:rgba(255,255,255,0.66);
+  margin-bottom:3px;
+}
+.payoff-date{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:23px;
+  line-height:1.25;
+  font-weight:600;
+  color:var(--gold-300);
+}
+.payoff-basis{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:3px 6px;
+  margin-top:13px;
+  font-size:11px;
+  line-height:1.5;
+  color:rgba(255,255,255,0.62);
+}
+.payoff-basis strong{
+  color:var(--white);
+  font-family:'Chakra Petch', sans-serif;
+  font-size:12px;
+  font-weight:600;
+}
+@media (max-width:370px){
+  .payoff-card{ padding:20px 17px 18px; }
+  .payoff-years{ font-size:41px; }
+  .payoff-date{ font-size:21px; }
+}
+
 /* live ticking interest */
 .ticker-card{
   background: linear-gradient(135deg, rgba(227,185,74,0.16), rgba(227,185,74,0.06));
@@ -1822,16 +1924,22 @@ function render(){
   const avgBasisMonths = avgBasisKeys.length;
   const proj = projectPayoff(balance, avgPayment);
 
-  let payoffText = '—';
-  let payoffSub = 'ยังไม่มีข้อมูลผ่อนพอประมาณการ';
+  let payoffYearsText = '—';
+  let payoffMonthsText = 'ยังไม่มีข้อมูล';
+  let payoffDateText = 'ยังประมาณการไม่ได้';
+  let payoffBasisText = 'ต้องมีข้อมูลการผ่อนก่อนจึงจะประมาณการได้';
   if(proj && proj.months !== Infinity){
     const payoffDate = addMonths(todayStr(), proj.months);
     const y = proj.months / 12;
-    payoffText = `${proj.months} เดือน`;
-    payoffSub = `≈ ${y.toFixed(1)} ปี · หมดหนี้ราว ${thaiDate(localDateStr(payoffDate))}<br><span style="font-size:10.5px;opacity:0.8;">คำนวณจากยอดผ่อนเฉลี่ย ${fmt(avgPayment,0)} บาท/เดือน (${avgBasisMonths} เดือนล่าสุด)</span>`;
+    payoffYearsText = `≈ ${y.toFixed(1)} ปี`;
+    payoffMonthsText = `${proj.months} เดือน`;
+    payoffDateText = thaiDate(localDateStr(payoffDate));
+    payoffBasisText = `จาก ${avgBasisMonths} เดือนล่าสุด`;
   } else if(proj && proj.months === Infinity){
-    payoffText = 'ไม่หมด';
-    payoffSub = 'ยอดผ่อนน้อยกว่าดอกเบี้ยต่อเดือน';
+    payoffYearsText = 'ยังไม่หมดหนี้';
+    payoffMonthsText = 'ควรเพิ่มยอดผ่อน';
+    payoffDateText = 'ยอดผ่อนต่ำกว่าดอกเบี้ยต่อเดือน';
+    payoffBasisText = 'ปรับยอดผ่อนเพื่อให้เงินต้นลดลง';
   }
 
   // จัดกลุ่มประวัติตามปี (พ.ศ.) เป็นแบบพับเก็บได้ เพื่อไม่ให้รายการยาวเกินไป
@@ -1966,15 +2074,27 @@ function render(){
         <div class="value">${fmt(lifetimeInterestTotal, 0)}<small>บาท</small></div>
       </div>
       <div class="stat-card">
-        <div class="icon-row"><span class="label">คาดว่าหมดหนี้ใน</span></div>
-        <div class="value gold">${payoffText}</div>
-      </div>
-      <div class="stat-card">
         <div class="icon-row"><span class="label">ยอดผ่อนเฉลี่ย/เดือน</span></div>
         <div class="value">${fmt(avgPayment,0)}<small>บาท</small></div>
       </div>
     </div>
-    <div style="font-size:11.5px; color:var(--ink-soft); text-align:center; margin-top:-6px; margin-bottom:6px;">${payoffSub}</div>
+
+    <section class="payoff-card" aria-label="ประมาณการวันหมดหนี้">
+      <div class="payoff-head">
+        <div class="payoff-title">ประมาณการวันหมดหนี้</div>
+        <div class="payoff-months">${payoffMonthsText}</div>
+      </div>
+      <div class="payoff-years">${payoffYearsText}</div>
+      <div class="payoff-date-box">
+        <div class="payoff-date-label">คาดว่าจะหมดหนี้ราว</div>
+        <div class="payoff-date">${payoffDateText}</div>
+      </div>
+      <div class="payoff-basis">
+        <span>คำนวณจากยอดผ่อนเฉลี่ย</span>
+        <strong>${fmt(avgPayment,0)} บาท/เดือน</strong>
+        <span>${payoffBasisText}</span>
+      </div>
+    </section>
 
     ${buildChartCard()}
 
