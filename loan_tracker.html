@@ -233,15 +233,15 @@ body{
   margin-left:3px;
 }
 
-/* Payoff estimate — full-width focal card */
+/* Payoff estimate — airy milestone card */
 .payoff-card{
-  background:linear-gradient(145deg, var(--navy-700) 0%, var(--navy-900) 100%);
-  border:1px solid rgba(227,185,74,0.42);
-  border-radius:20px;
-  padding:22px 22px 20px;
+  background:linear-gradient(155deg, #fffefb 0%, #fbf5e6 100%);
+  border:1px solid rgba(200,151,48,0.2);
+  border-radius:18px;
+  padding:24px 24px 20px;
   margin-bottom:16px;
-  color:var(--white);
-  box-shadow:0 10px 30px rgba(10,22,40,0.16);
+  color:var(--navy-800);
+  box-shadow:0 8px 26px rgba(68,51,18,0.08);
   position:relative;
   overflow:hidden;
   text-align:center;
@@ -249,68 +249,81 @@ body{
 .payoff-card::before{
   content:'';
   position:absolute;
-  width:190px;
-  height:190px;
-  top:-100px;
-  right:-65px;
-  border-radius:50%;
-  background:radial-gradient(circle, rgba(227,185,74,0.22), transparent 68%);
-  pointer-events:none;
-}
-.payoff-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  position:relative;
+  inset:0 0 auto;
+  height:3px;
+  background:linear-gradient(90deg, transparent 4%, var(--gold-500) 50%, transparent 96%);
 }
 .payoff-title{
   font-family:'Chakra Petch', sans-serif;
-  font-size:13px;
+  font-size:12px;
   font-weight:600;
-  color:var(--gold-300);
-  letter-spacing:0.3px;
-  text-align:left;
-}
-.payoff-months{
-  flex:0 0 auto;
-  font-family:'Chakra Petch', sans-serif;
-  font-size:11.5px;
-  font-weight:600;
-  color:var(--gold-300);
-  background:rgba(227,185,74,0.12);
-  border:1px solid rgba(227,185,74,0.24);
-  border-radius:20px;
-  padding:5px 10px;
-}
-.payoff-years{
-  font-family:'Chakra Petch', sans-serif;
-  font-size:46px;
-  line-height:1;
-  font-weight:700;
-  color:var(--white);
-  letter-spacing:-0.5px;
-  margin:19px 0 18px;
-  position:relative;
-}
-.payoff-date-box{
-  padding:13px 14px 12px;
-  border-radius:13px;
-  background:rgba(255,255,255,0.075);
-  border:1px solid rgba(255,255,255,0.1);
-  position:relative;
+  color:var(--gold-700);
+  letter-spacing:0.55px;
+  margin-bottom:17px;
 }
 .payoff-date-label{
-  font-size:11.5px;
-  color:rgba(255,255,255,0.66);
-  margin-bottom:3px;
+  font-size:11px;
+  color:var(--ink-soft);
+  margin-bottom:2px;
 }
 .payoff-date{
   font-family:'Chakra Petch', sans-serif;
-  font-size:23px;
-  line-height:1.25;
-  font-weight:600;
-  color:var(--gold-300);
+  font-size:34px;
+  line-height:1.2;
+  font-weight:700;
+  color:var(--navy-800);
+  letter-spacing:-0.3px;
+}
+.payoff-divider{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:18px 0 15px;
+}
+.payoff-divider::before,
+.payoff-divider::after{
+  content:'';
+  width:54px;
+  height:1px;
+  background:rgba(200,151,48,0.28);
+}
+.payoff-divider span{
+  width:5px;
+  height:5px;
+  margin:0 9px;
+  border-radius:50%;
+  background:var(--gold-500);
+  box-shadow:0 0 0 4px rgba(227,185,74,0.13);
+}
+.payoff-metrics{
+  display:grid;
+  grid-template-columns:1fr 1px 1fr;
+  align-items:center;
+  gap:18px;
+}
+.payoff-metrics::before{
+  content:'';
+  grid-column:2;
+  grid-row:1;
+  width:1px;
+  height:42px;
+  background:rgba(10,22,40,0.1);
+}
+.payoff-metric:first-child{ grid-column:1; grid-row:1; }
+.payoff-metric:last-child{ grid-column:3; grid-row:1; }
+.payoff-metric strong{
+  display:block;
+  font-family:'Chakra Petch', sans-serif;
+  font-size:24px;
+  line-height:1.2;
+  font-weight:700;
+  color:var(--gold-700);
+}
+.payoff-metric span{
+  display:block;
+  margin-top:3px;
+  font-size:10.5px;
+  color:var(--ink-soft);
 }
 .payoff-basis{
   display:flex;
@@ -318,21 +331,24 @@ body{
   justify-content:center;
   flex-wrap:wrap;
   gap:3px 6px;
-  margin-top:13px;
+  margin-top:18px;
+  padding-top:14px;
+  border-top:1px solid rgba(200,151,48,0.18);
   font-size:11px;
   line-height:1.5;
-  color:rgba(255,255,255,0.62);
+  color:var(--ink-soft);
 }
 .payoff-basis strong{
-  color:var(--white);
+  color:var(--navy-800);
   font-family:'Chakra Petch', sans-serif;
   font-size:12px;
   font-weight:600;
 }
 @media (max-width:370px){
-  .payoff-card{ padding:20px 17px 18px; }
-  .payoff-years{ font-size:41px; }
-  .payoff-date{ font-size:21px; }
+  .payoff-card{ padding:22px 17px 18px; }
+  .payoff-date{ font-size:30px; }
+  .payoff-metrics{ gap:12px; }
+  .payoff-metric strong{ font-size:22px; }
 }
 
 /* live ticking interest */
@@ -2080,17 +2096,22 @@ function render(){
     </div>
 
     <section class="payoff-card" aria-label="ประมาณการวันหมดหนี้">
-      <div class="payoff-head">
-        <div class="payoff-title">ประมาณการวันหมดหนี้</div>
-        <div class="payoff-months">${payoffMonthsText}</div>
-      </div>
-      <div class="payoff-years">${payoffYearsText}</div>
-      <div class="payoff-date-box">
-        <div class="payoff-date-label">คาดว่าจะหมดหนี้ราว</div>
-        <div class="payoff-date">${payoffDateText}</div>
+      <div class="payoff-title">ประมาณการวันหมดหนี้</div>
+      <div class="payoff-date-label">คาดว่าจะหมดหนี้ราว</div>
+      <div class="payoff-date">${payoffDateText}</div>
+      <div class="payoff-divider" aria-hidden="true"><span></span></div>
+      <div class="payoff-metrics">
+        <div class="payoff-metric">
+          <strong>${payoffYearsText}</strong>
+          <span>ระยะเวลาโดยประมาณ</span>
+        </div>
+        <div class="payoff-metric">
+          <strong>${payoffMonthsText}</strong>
+          <span>จำนวนเดือนที่เหลือ</span>
+        </div>
       </div>
       <div class="payoff-basis">
-        <span>คำนวณจากยอดผ่อนเฉลี่ย</span>
+        <span>อ้างอิงยอดผ่อนเฉลี่ย</span>
         <strong>${fmt(avgPayment,0)} บาท/เดือน</strong>
         <span>${payoffBasisText}</span>
       </div>
