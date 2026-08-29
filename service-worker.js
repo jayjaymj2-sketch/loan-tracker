@@ -2,11 +2,11 @@
 // หน้าที่: เก็บไฟล์หน้าแอพ (HTML/manifest/ไอคอน) ไว้ใช้ออฟไลน์ได้
 // ข้อมูลจริง (จาก Google Sheets/Apps Script) จะไม่ถูก cache เพราะต้องสดเสมอ
 
-const CACHE_NAME = 'loan-tracker-cache-v13'; // เพิ่มเลขนี้ทุกครั้งที่อัปเดตไฟล์ เพื่อบังคับเครื่องผู้ใช้ดึงเวอร์ชันใหม่
+const CACHE_NAME = 'loan-tracker-cache-v14'; // เพิ่มเลขนี้ทุกครั้งที่อัปเดตไฟล์ เพื่อบังคับเครื่องผู้ใช้ดึงเวอร์ชันใหม่
 const ASSETS = [
   './loan_tracker.html',
-  './styles.css',
-  './js/app.js',
+  './styles.css?v=14',
+  './js/app.js?v=14',
   './js/receipt-parser.js',
   './js/sync-version.js',
   './manifest.json',
@@ -45,7 +45,8 @@ self.addEventListener('fetch', (event) => {
   // สำหรับการนำทางไปหน้า HTML (เช่น เปิดแอพ/รีเฟรช) ให้ข้าม HTTP cache ของเบราว์เซอร์ไปเลย
   // เพื่อให้ได้โค้ดฉบับล่าสุดจริงๆ ทุกครั้งที่มีอินเทอร์เน็ต (ไม่ใช่แค่ข้าม cache ของ Service Worker)
   const isNavigation = event.request.mode === 'navigate' || url.pathname.endsWith('.html');
-  const fetchOptions = isNavigation ? { cache: 'no-store' } : {};
+  const isAppAsset = url.origin === self.location.origin;
+  const fetchOptions = (isNavigation || isAppAsset) ? { cache: 'no-store' } : {};
 
   event.respondWith(
     fetch(event.request, fetchOptions)

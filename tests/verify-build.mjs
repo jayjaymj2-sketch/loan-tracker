@@ -21,6 +21,7 @@ assert.ok(app.includes("fontSize:'normal'"), 'app must persist a font-size prefe
 assert.ok(app.includes("setAppFontSize"), 'app must provide font-size controls');
 assert.ok(app.includes("state.payments.slice(-5).reverse()"), 'overview payments must follow the same order as payment history');
 assert.ok(app.includes("buildLatestAnnualInterestCard"), 'overview must show the latest annual interest summary');
-assert.ok(worker.includes("loan-tracker-cache-v13"), 'service worker cache must be bumped for the payment-order update');
+assert.ok(html.includes("./js/app.js?v=14"), 'HTML must request the updated app bundle without stale browser cache');
+assert.ok(worker.includes("loan-tracker-cache-v14"), 'service worker cache must be bumped for the payment-order update');
 
 console.log('Static build verification passed');
