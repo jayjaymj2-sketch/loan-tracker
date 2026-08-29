@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+
+const html = fs.readFileSync('loan_tracker.html', 'utf8');
+const worker = fs.readFileSync('service-worker.js', 'utf8');
+const backend = fs.readFileSync('apps-script/Code.gs', 'utf8');
+const app = fs.readFileSync('js/app.js', 'utf8');
+new Function(backend);
+
+for(const asset of ['./styles.css', './js/receipt-parser.js', './js/sync-version.js', './js/app.js']){
+  assert.ok(html.includes(asset), `loan_tracker.html must load ${asset}`);
+  assert.ok(worker.includes(asset), `service-worker.js must cache ${asset}`);
+}
+
+assert.ok(backend.includes('LockService.getScriptLock()'), 'Apps Script must use ScriptLock');
+assert.ok(backend.includes('expectedVersion'), 'Apps Script must validate expectedVersion');
+assert.ok(app.includes('accept="application/pdf,image/*"'), 'receipt input must accept images');
+assert.ok(app.includes("const APPS_SCRIPT_URL = 'https://script.google.com/"), 'production Apps Script URL must be configured');
+
+console.log('Static build verification passed');
