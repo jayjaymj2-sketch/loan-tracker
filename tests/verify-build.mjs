@@ -19,8 +19,8 @@ assert.ok(app.includes("const APPS_SCRIPT_URL = 'https://script.google.com/"), '
 assert.ok(app.includes("{id:'overview',label:'ภาพรวม'}"), 'app must expose category navigation');
 assert.ok(app.includes("fontSize:'normal'"), 'app must persist a font-size preference');
 assert.ok(app.includes("setAppFontSize"), 'app must provide font-size controls');
-assert.ok(app.includes("slice(0,5)"), 'overview must show the five latest payments');
+assert.ok(app.includes("state.payments.slice(-5).reverse()"), 'overview payments must follow the same order as payment history');
 assert.ok(app.includes("buildLatestAnnualInterestCard"), 'overview must show the latest annual interest summary');
-assert.ok(worker.includes("loan-tracker-cache-v12"), 'service worker cache must be bumped for the overview update');
+assert.ok(worker.includes("loan-tracker-cache-v13"), 'service worker cache must be bumped for the payment-order update');
 
 console.log('Static build verification passed');

@@ -1342,7 +1342,9 @@ function buildPageHeading(title,description){
 }
 
 function buildRecentPayments(){
-  const recent=state.payments.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,5);
+  // ใช้ลำดับเดียวกับหน้าประวัติ: รายการที่บันทึกล่าสุดอยู่บนสุด
+  // สำคัญกับวันที่ที่มีหลายรายการ เพราะหากเรียงเฉพาะวันที่ ลำดับภายในวันจะไม่ตรงกัน
+  const recent=state.payments.slice(-5).reverse();
   if(!recent.length) return '';
   return `<section class="recent-card" aria-label="การชำระล่าสุด 5 ครั้ง"><div class="recent-head"><h3>การชำระล่าสุด 5 ครั้ง</h3><button onclick="setAppPage('history')">ดูประวัติทั้งหมด</button></div>${recent.map(payment=>`<div class="recent-row"><div><strong>${thaiDate(payment.date)}</strong><span>ดอกเบี้ย ${fmt(payment.interest)} · เงินต้น ${fmt(payment.principalPaid)}</span></div><div><strong>-${fmt(payment.amount)} บาท</strong><span>คงเหลือ ${fmt(payment.balanceAfter)}</span></div></div>`).join('')}</section>`;
 }
