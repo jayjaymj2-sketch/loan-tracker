@@ -1342,9 +1342,15 @@ function buildPageHeading(title,description){
 }
 
 function buildRecentPayments(){
-  const recent=state.payments.slice(-2).reverse();
+  const recent=state.payments.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,5);
   if(!recent.length) return '';
-  return `<section class="recent-card" aria-label="การชำระล่าสุด"><div class="recent-head"><h3>การชำระล่าสุด</h3><button onclick="setAppPage('history')">ดูประวัติทั้งหมด</button></div>${recent.map(payment=>`<div class="recent-row"><div><strong>${thaiDate(payment.date)}</strong><span>ดอกเบี้ย ${fmt(payment.interest)} · เงินต้น ${fmt(payment.principalPaid)}</span></div><div><strong>-${fmt(payment.amount)} บาท</strong><span>คงเหลือ ${fmt(payment.balanceAfter)}</span></div></div>`).join('')}</section>`;
+  return `<section class="recent-card" aria-label="การชำระล่าสุด 5 ครั้ง"><div class="recent-head"><h3>การชำระล่าสุด 5 ครั้ง</h3><button onclick="setAppPage('history')">ดูประวัติทั้งหมด</button></div>${recent.map(payment=>`<div class="recent-row"><div><strong>${thaiDate(payment.date)}</strong><span>ดอกเบี้ย ${fmt(payment.interest)} · เงินต้น ${fmt(payment.principalPaid)}</span></div><div><strong>-${fmt(payment.amount)} บาท</strong><span>คงเหลือ ${fmt(payment.balanceAfter)}</span></div></div>`).join('')}</section>`;
+}
+
+function buildLatestAnnualInterestCard(annualInterestSummary){
+  const latest=annualInterestSummary[annualInterestSummary.length-1];
+  if(!latest) return '';
+  return `<section class="overview-interest-card" aria-label="สรุปดอกเบี้ยปีล่าสุด"><div class="overview-interest-head"><div><span>สรุปดอกเบี้ยปีล่าสุด</span><strong>ปี ${latest.year+543}</strong></div><button onclick="setAppPage('history')">ดูรายปีทั้งหมด</button></div><div class="overview-interest-summary"><span>ดอกเบี้ยจ่ายแล้ว</span><strong>${fmt(latest.amount,2)} บาท</strong><small>${latest.source}</small></div></section>`;
 }
 
 function buildAnnualInterestCard(annualInterestSummary,lifetimeInterestTotal,lifetimeInterestAsOf){
@@ -1574,6 +1580,8 @@ function render(){
         <span>${payoffBasisText}</span>
       </div>
     </section>
+
+    ${buildLatestAnnualInterestCard(annualInterestSummary)}
 
     ${buildRecentPayments()}
     </main>

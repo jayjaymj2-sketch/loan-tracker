@@ -932,6 +932,7 @@ body{
   color:var(--ink-soft);
 }
 .recent-card,
+.overview-interest-card,
 .settings-card,
 .logout-card{
   width:100%;
@@ -939,6 +940,59 @@ body{
   border:1px solid rgba(180,150,80,0.18);
   border-radius:16px;
   box-shadow:0 2px 10px rgba(180,150,80,0.06);
+}
+.overview-interest-card{ margin-top:16px; padding:15px 16px; }
+.overview-interest-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.overview-interest-head > div{ display:flex; flex-direction:column; gap:2px; }
+.overview-interest-head span{
+  font-family:'Chakra Petch',sans-serif;
+  font-size:calc(14px + var(--font-bump));
+  font-weight:600;
+  color:var(--navy-800);
+}
+.overview-interest-head strong{
+  font-size:calc(11px + var(--font-bump));
+  font-weight:500;
+  color:var(--gold-700);
+}
+.overview-interest-head button{
+  border:0;
+  background:transparent;
+  color:var(--gold-700);
+  font-family:'Sarabun',sans-serif;
+  font-size:calc(11.5px + var(--font-bump));
+  font-weight:600;
+  cursor:pointer;
+}
+.overview-interest-summary{
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:baseline;
+  gap:4px 14px;
+  margin-top:12px;
+  padding:13px 14px;
+  background:var(--cream);
+  border:1px solid rgba(180,150,80,0.18);
+  border-radius:12px;
+}
+.overview-interest-summary > span{ font-size:calc(11.5px + var(--font-bump)); color:var(--ink-soft); }
+.overview-interest-summary > strong{
+  font-family:'Chakra Petch',sans-serif;
+  font-size:calc(19px + var(--font-bump));
+  color:var(--navy-800);
+  text-align:right;
+}
+.overview-interest-summary > small{
+  grid-column:1 / -1;
+  font-size:calc(10px + var(--font-bump));
+  line-height:1.45;
+  color:var(--ink-soft);
+  text-align:right;
 }
 .recent-card{ margin-top:16px; overflow:hidden; }
 .recent-head{
@@ -977,6 +1031,12 @@ body{
 .recent-row strong{ display:block; font-family:'Chakra Petch',sans-serif; font-size:calc(13px + var(--font-bump)); color:var(--navy-800); }
 .recent-row > div:last-child strong{ color:var(--gold-700); }
 .recent-row span{ display:block; margin-top:2px; font-size:calc(10.5px + var(--font-bump)); color:var(--ink-soft); }
+
+@media(max-width:420px){
+  .overview-interest-summary{ grid-template-columns:1fr; }
+  .overview-interest-summary > strong,
+  .overview-interest-summary > small{ text-align:left; }
+}
 
 .annual-interest-card{ padding:14px 16px; }
 .annual-interest-list{ display:flex; flex-direction:column; }
