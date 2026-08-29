@@ -138,7 +138,7 @@ function sanitizePayment_(raw){
     principalPaid:round2_(principalPaid),
     balanceAfter:round2_(balanceAfter),
     payer:String(raw.payer || ''),
-    locked:raw.locked === true || String(raw.locked).toLowerCase() === 'true',
+    locked:raw.locked === true || Number(raw.locked) === 1 || String(raw.locked).toLowerCase() === 'true',
     createdAt:String(raw.createdAt || ''),
     updatedAt:String(raw.updatedAt || ''),
     source:String(raw.source || '')
@@ -181,11 +181,26 @@ function paymentToRow_(payment){
 }
 
 function isAuthorized_(pass){
-  const expected = String(PropertiesService.getScriptProperties().getProperty('FAMILY_PASS_SHA256') || '').toLowerCase();
+  const properties = PropertiesService.getScriptProperties();
+  let expected = String(properties.getProperty('FAMILY_PASS_SHA256') || '').toLowerCase();
+  // ย้ายระบบรุ่นเดิมที่เก็บ PASSPHRASE แบบข้อความธรรมดาไปเป็น SHA-256 อัตโนมัติ
+  // เมื่อย้ายสำเร็จจะลบค่าเดิมออกทันที โดยผู้ใช้ยังเข้าสู่ระบบด้วยรหัสเดิมได้ตามปกติ
+  if(!expected){
+    const legacyPass = properties.getProperty('PASSPHRASE');
+    if(legacyPass){
+      expected = sha256_(legacyPass);
+      properties.setProperty('FAMILY_PASS_SHA256', expected);
+      properties.deleteProperty('PASSPHRASE');
+    }
+  }
   if(!expected || !pass) return false;
-  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(pass), Utilities.Charset.UTF_8);
-  const actual = digest.map(function(byte){ return ('0' + ((byte < 0 ? byte + 256 : byte).toString(16))).slice(-2); }).join('');
+  const actual = sha256_(String(pass));
   return constantTimeEqual_(actual, expected);
+}
+
+function sha256_(value){
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(value), Utilities.Charset.UTF_8);
+  return digest.map(function(byte){ return ('0' + ((byte < 0 ? byte + 256 : byte).toString(16))).slice(-2); }).join('');
 }
 
 function constantTimeEqual_(a, b){
@@ -215,7 +230,9 @@ function round2_(value){
 }
 
 function normalizeDate_(value){
-  if(value instanceof Date && !isNaN(value.getTime())){
+  // ค่าวันที่จาก Google Sheets อาจเป็นวัตถุ Date ข้าม execution realm
+  // ซึ่ง instanceof Date ให้ค่า false แม้มี getTime() ใช้งานได้ตามปกติ
+  if(value && typeof value.getTime === 'function' && !isNaN(value.getTime())){
     return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
   const text = String(value || '').trim();
@@ -227,7 +244,7 @@ function normalizeDate_(value){
 
 function normalizeTimestamp_(value){
   if(!value) return '';
-  const date = value instanceof Date ? value : new Date(value);
+  const date = value && typeof value.getTime === 'function' ? value : new Date(value);
   return isNaN(date.getTime()) ? String(value) : date.toISOString();
 }
 
