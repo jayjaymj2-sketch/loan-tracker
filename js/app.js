@@ -116,11 +116,52 @@ let state = null;
 
 const PLANNER_PREFS_KEY = 'lt_planner_prefs_v1';
 const BACKUP_HISTORY_KEY = 'lt_backup_history_v1';
+const UI_PREFS_KEY = 'lt_ui_prefs_v1';
 let plannerState = { tab:'simulate', payment:null, lumpSum:0, targetDate:'' };
+let uiState = { page:'overview', fontSize:'normal' };
 try{
   const savedPlanner = JSON.parse(localStorage.getItem(PLANNER_PREFS_KEY) || 'null');
   if(savedPlanner && typeof savedPlanner === 'object') plannerState = Object.assign(plannerState, savedPlanner);
 }catch(e){}
+try{
+  const savedUi = JSON.parse(localStorage.getItem(UI_PREFS_KEY) || 'null');
+  if(savedUi && typeof savedUi === 'object') uiState = Object.assign(uiState, savedUi);
+}catch(e){}
+if(!['overview','plan','history','settings'].includes(uiState.page)) uiState.page='overview';
+if(!['normal','large','xlarge'].includes(uiState.fontSize)) uiState.fontSize='normal';
+
+function saveUiPrefs(){
+  try{ localStorage.setItem(UI_PREFS_KEY, JSON.stringify(uiState)); }catch(e){}
+}
+
+function applyFontPreference(){
+  document.documentElement.dataset.fontSize=uiState.fontSize;
+}
+
+function setAppPage(page){
+  if(!['overview','plan','history','settings'].includes(page)) return;
+  uiState.page=page;
+  if(page==='plan' && plannerState.tab==='data') plannerState.tab='simulate';
+  saveUiPrefs();
+  render();
+  requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'auto'}));
+}
+
+function setAppFontSize(size){
+  if(!['normal','large','xlarge'].includes(size)) return;
+  uiState.fontSize=size;
+  saveUiPrefs();
+  applyFontPreference();
+  render();
+  showToast(size==='normal'?'ใช้ตัวอักษรขนาดปกติ':size==='large'?'เพิ่มขนาดตัวอักษรแล้ว':'ใช้ตัวอักษรขนาดใหญ่มากแล้ว');
+}
+
+function cycleFontSize(){
+  const sizes=['normal','large','xlarge'];
+  setAppFontSize(sizes[(sizes.indexOf(uiState.fontSize)+1)%sizes.length]);
+}
+
+applyFontPreference();
 
 const SEED_PAYMENTS = [
   {"date":"2020-08-31","amount":18500.0,"interest":11316.86,"principalPaid":7183.14,"balanceAfter":3546070.86,"payer":"dad","locked":true},
@@ -822,7 +863,7 @@ function getCurrentMonthSummary(avgPayment){
 }
 
 function setPlannerTab(tab){
-  if(!['simulate','target','data'].includes(tab)) return;
+  if(!['simulate','target'].includes(tab)) return;
   plannerState.tab=tab;
   savePlannerPrefs();
   render();
@@ -1026,7 +1067,7 @@ function buildPlannerHub(balance,avgPayment,avgBasisMonths,lifetimeInterestTotal
     </div>`;
   }
 
-  return `<div class="section-title" id="planning-hub">วางแผนปลดหนี้</div><section class="planner-shell" aria-label="เครื่องมือวางแผนปลดหนี้"><div class="planner-tabs" role="tablist"><button class="planner-tab ${plannerState.tab==='simulate'?'active':''}" role="tab" aria-selected="${plannerState.tab==='simulate'}" onclick="setPlannerTab('simulate')">จำลอง</button><button class="planner-tab ${plannerState.tab==='target'?'active':''}" role="tab" aria-selected="${plannerState.tab==='target'}" onclick="setPlannerTab('target')">เป้าหมาย</button><button class="planner-tab ${plannerState.tab==='data'?'active':''}" role="tab" aria-selected="${plannerState.tab==='data'}" onclick="setPlannerTab('data')">ข้อมูล</button></div>${pane}</section>`;
+  return `<section class="planner-shell" id="planning-hub" aria-label="เครื่องมือวางแผนปลดหนี้"><div class="planner-tabs planner-tabs-two" role="tablist"><button class="planner-tab ${plannerState.tab==='simulate'?'active':''}" role="tab" aria-selected="${plannerState.tab==='simulate'}" onclick="setPlannerTab('simulate')">จำลองยอดผ่อน</button><button class="planner-tab ${plannerState.tab==='target'?'active':''}" role="tab" aria-selected="${plannerState.tab==='target'}" onclick="setPlannerTab('target')">ตั้งเป้าหมาย</button></div>${pane}</section>`;
 }
 
 function showToast(msg){
@@ -1286,6 +1327,52 @@ function buildChartCard(){
   </div>`;
 }
 
+function buildCategoryNav(){
+  const pages=[
+    {id:'overview',label:'ภาพรวม'},
+    {id:'plan',label:'แผนปลดหนี้'},
+    {id:'history',label:'ประวัติ'},
+    {id:'settings',label:'ตั้งค่า'}
+  ];
+  return `<nav class="category-nav" aria-label="หมวดหมู่หลัก">${pages.map(page=>`<button class="category-tab ${uiState.page===page.id?'active':''}" aria-current="${uiState.page===page.id?'page':'false'}" onclick="setAppPage('${page.id}')">${page.label}</button>`).join('')}</nav>`;
+}
+
+function buildPageHeading(title,description){
+  return `<header class="page-heading"><h2>${title}</h2><p>${description}</p></header>`;
+}
+
+function buildRecentPayments(){
+  const recent=state.payments.slice(-2).reverse();
+  if(!recent.length) return '';
+  return `<section class="recent-card" aria-label="การชำระล่าสุด"><div class="recent-head"><h3>การชำระล่าสุด</h3><button onclick="setAppPage('history')">ดูประวัติทั้งหมด</button></div>${recent.map(payment=>`<div class="recent-row"><div><strong>${thaiDate(payment.date)}</strong><span>ดอกเบี้ย ${fmt(payment.interest)} · เงินต้น ${fmt(payment.principalPaid)}</span></div><div><strong>-${fmt(payment.amount)} บาท</strong><span>คงเหลือ ${fmt(payment.balanceAfter)}</span></div></div>`).join('')}</section>`;
+}
+
+function buildAnnualInterestCard(annualInterestSummary,lifetimeInterestTotal,lifetimeInterestAsOf){
+  return `<div class="section-title">สรุปดอกเบี้ยรายปี</div><div class="form-card annual-interest-card"><div class="annual-interest-list">${annualInterestSummary.map(y=>`<div class="annual-interest-row"><span>ปี ${y.year+543}</span><span><strong>${fmt(y.amount,2)} บาท</strong><small>${y.source}</small></span></div>`).join('')}<div class="annual-interest-total"><span>รวมทั้งหมด${lifetimeInterestAsOf?`ถึง ${thaiDate(lifetimeInterestAsOf)}`:''}</span><strong>${fmt(lifetimeInterestTotal,2)} บาท</strong></div></div></div>`;
+}
+
+function buildPaymentForm(){
+  return `<div class="section-title">บันทึกการผ่อนชำระ</div><div class="form-card"><div class="form-row"><label>วันที่ชำระ</label><input type="date" id="pay-date" value="${todayStr()}"><div class="date-thai" id="date-thai"></div></div><div class="form-row"><label>จำนวนเงินที่ชำระ (บาท)</label><input type="number" id="pay-amount" placeholder="เช่น 19600" inputmode="decimal" value=""></div><div class="preview-box" id="preview-box"></div><div class="btn-row payment-submit-row"><button class="btn btn-primary" onclick="submitPayment()">บันทึกการผ่อน</button></div><div class="receipt-upload-row"><div class="ru-label">หรือเลือกใบเสร็จ SCB แบบ PDF หรือรูปถ่าย แอพจะอ่านข้อมูลในเครื่องนี้โดยไม่อัปโหลดไฟล์</div><button class="btn-upload" id="receipt-upload-btn" onclick="document.getElementById('receipt-file-input').click()">🧾 PDF / รูปภาพ</button><input type="file" id="receipt-file-input" accept="application/pdf,image/*" style="display:none" onchange="handleReceiptFile(event)"></div></div>`;
+}
+
+function buildSettingsPage(balance,avgPayment,lifetimeInterestTotal){
+  const quality=analyzeDataQuality();
+  const latestBackup=getBackupHistory()[0];
+  const projection=buildProjectionSchedule(balance,avgPayment,0);
+  const qualityItems=quality.issues.slice(0,3).map(issue=>`<li>${issue}</li>`).join('');
+  const extraIssues=Math.max(quality.issues.length-3,0);
+  const fontOptions=[
+    {id:'normal',sample:'Aa',label:'ปกติ'},
+    {id:'large',sample:'Aa',label:'ใหญ่'},
+    {id:'xlarge',sample:'Aa',label:'ใหญ่มาก'}
+  ];
+  return `${buildPageHeading('ตั้งค่าแอป','ปรับการแสดงผล การซิงค์ และจัดการสำเนาข้อมูล')}
+    <section class="settings-card font-settings" aria-labelledby="font-size-title"><div class="settings-title" id="font-size-title">ขนาดตัวอักษร</div><p class="settings-description">ปรับขนาดตัวอักษรทุกหน้าของแอป</p><div class="font-size-options" role="group" aria-label="เลือกขนาดตัวอักษร">${fontOptions.map(option=>`<button class="font-size-option ${uiState.fontSize===option.id?'active':''}" aria-pressed="${uiState.fontSize===option.id}" onclick="setAppFontSize('${option.id}')"><span>${option.sample}</span><strong>${option.label}</strong></button>`).join('')}</div><div class="font-preview"><span>ตัวอย่างข้อความ</span><div><small>ยอดหนี้คงเหลือ</small><strong>1,768,117 บาท</strong></div><div><small>ดอกเบี้ยสะสม</small><strong>${fmt(lifetimeInterestTotal,0)} บาท</strong></div></div></section>
+    <section class="settings-card settings-sync"><div><div class="settings-title">การซิงค์ข้อมูล</div><p class="settings-description">${syncStatus.online?'เชื่อมต่อแล้ว · ข้อมูลครอบครัวเป็นชุดเดียวกัน':'ออฟไลน์ · แสดงข้อมูลล่าสุดที่มีในเครื่อง'}</p></div><button class="settings-action" onclick="manualSync()">↻ ซิงค์ข้อมูล</button></section>
+    <section class="settings-card"><div class="settings-title">ข้อมูลและรายงาน</div><div class="interest-summary"><div><strong>${projection.finite?fmt(projection.totalInterest,0):'—'}</strong><span>ดอกเบี้ยที่คาดว่าจะจ่ายในอนาคต</span></div><div><strong>${projection.finite?fmt(lifetimeInterestTotal+projection.totalInterest,0):'—'}</strong><span>ดอกเบี้ยตลอดสัญญาโดยประมาณ</span></div></div><div class="quality-box ${quality.issues.length?'':'ok'}"><div class="quality-title"><span>${quality.issues.length?'พบข้อมูลที่ควรตรวจสอบ':'ข้อมูลต่อเนื่องดี'}</span><strong>${quality.issues.length?quality.issues.length+' จุด':'ผ่าน'}</strong></div>${quality.issues.length?`<ul class="quality-list">${qualityItems}${extraIssues?`<li>และอีก ${extraIssues} จุด</li>`:''}</ul>`:`<div class="planner-note settings-quality-note">ไม่พบรายการซ้ำหรือยอดคงเหลือขาดช่วง · มีรายการตัดเงินต้นเพิ่ม ${quality.zeroInterestCount} รายการ</div>`}</div><div class="utility-grid"><button class="utility-btn" onclick="exportPDFReport()">รายงาน PDF<span>เปิดหน้าพิมพ์และบันทึก PDF</span></button><button class="utility-btn" onclick="exportPaymentsCSV()">ส่งออก CSV<span>ประวัติทุกรายการ</span></button><button class="utility-btn" onclick="exportBackupJSON()">สำรองข้อมูล<span>ไฟล์ JSON สำหรับกู้คืน</span></button><button class="utility-btn" onclick="document.getElementById('backup-restore-input').click()">กู้คืนข้อมูล<span>กู้คืนในเครื่องอย่างปลอดภัย</span></button><button class="utility-btn utility-wide" onclick="restoreLatestSnapshot()">ย้อนกลับการแก้ไขล่าสุด<span>${latestBackup?`${latestBackup.label} · ${new Date(latestBackup.createdAt).toLocaleString('th-TH')}`:'ยังไม่มีประวัติการแก้ไข'}</span></button></div><input id="backup-restore-input" type="file" accept="application/json,.json" style="display:none" onchange="handleBackupRestore(event)"><div class="backup-meta">ไฟล์สำรองเก็บข้อมูลหนี้และประวัติการผ่อนทั้งหมด · การกู้คืนไม่เขียนทับระบบกลางอัตโนมัติ</div></section>
+    <button class="logout-card" onclick="logoutFamily()"><strong>ออกจากระบบ</strong><span>ต้องกรอกรหัสครอบครัวใหม่เมื่อกลับมาใช้งาน</span></button>`;
+}
+
 function render(){
   const app = document.getElementById('app');
   const balance = state.currentBalance; // เงินต้นคงเหลือ (หลังตัดชำระงวดล่าสุด)
@@ -1401,8 +1488,9 @@ function render(){
     syncBannerHtml = `
     <div class="sync-banner ${syncStatus.online ? '' : 'offline'}">
       <span><span class="sb-dot"></span>${statusText}</span>
-      <span>
+      <span class="sync-actions">
         <button onclick="manualSync()">↻ ซิงค์</button>
+        <button class="font-quick" onclick="cycleFontSize()" aria-label="เปลี่ยนขนาดตัวอักษร">ก ก+</button>
         <button onclick="logoutFamily()" style="background:transparent; color:var(--ink-soft); margin-left:4px;">ออกจากระบบ</button>
       </span>
     </div>`;
@@ -1418,6 +1506,9 @@ function render(){
 
   app.innerHTML = `
     ${syncBannerHtml}
+    ${buildCategoryNav()}
+    <main class="page-panel" data-page="overview" ${uiState.page==='overview'?'':'hidden'}>
+    ${buildPageHeading('ภาพรวมสินเชื่อ','ยอดคงเหลือ ความคืบหน้า และประมาณการวันหมดหนี้')}
     <div class="hero-card">
       <div class="hero-label">💰 ยอดหนี้คงเหลือ (เรียลไทม์)</div>
       <div class="hero-balance">${fmt(liveBalance, 2)}<span class="unit">บาท</span></div>
@@ -1427,11 +1518,11 @@ function render(){
         <span>ผ่อนไปแล้ว <span class="progress-pct">${progress.toFixed(1)}%</span></span>
         <span>เหลือ ${fmt(liveBalance,0)} บาท</span>
       </div>
-      <div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; font-size:12.5px; color:rgba(250,247,238,0.6);">
+      <div class="hero-meta-row hero-meta-first">
         <span>ยอดหนี้เงินกู้ทั้งหมด (ตั้งต้น)</span>
         <span style="color:var(--gold-300); font-weight:600;">${fmt(state.originalPrincipal, 2)} บาท</span>
       </div>
-      <div style="margin-top:6px; display:flex; justify-content:space-between; font-size:12.5px; color:rgba(250,247,238,0.6);">
+      <div class="hero-meta-row">
         <span>วันที่กู้</span>
         <span style="color:var(--gold-300); font-weight:600;">${thaiDate(state.originalDate)}</span>
       </div>
@@ -1484,53 +1575,30 @@ function render(){
       </div>
     </section>
 
+    ${buildRecentPayments()}
+    </main>
+
+    <main class="page-panel" data-page="plan" ${uiState.page==='plan'?'':'hidden'}>
+    ${buildPageHeading('แผนปลดหนี้','ทดลองยอดผ่อน ตั้งเป้าหมาย และดูแนวโน้มเงินต้น')}
     ${buildPlannerHub(balance, avgPayment, avgBasisMonths, lifetimeInterestTotal)}
 
     ${buildChartCard()}
 
-    <div class="section-title">สรุปดอกเบี้ยรายปี</div>
-    <div class="form-card" style="padding:14px 16px;">
-      <div style="display:flex; flex-direction:column; gap:0;">
-        ${annualInterestSummary.map(y => `
-          <div style="display:flex; justify-content:space-between; align-items:baseline; padding:8px 0; border-bottom:1px solid rgba(180,150,80,0.12);">
-            <span style="font-size:13px; color:var(--navy-800); font-weight:500;">ปี ${y.year + 543}</span>
-            <span style="text-align:right;">
-              <span style="font-family:'Chakra Petch', sans-serif; font-size:14px; font-weight:600; color:var(--gold-700);">${fmt(y.amount,2)} บาท</span>
-              <div style="font-size:10px; color:var(--ink-soft); margin-top:1px;">${y.source}</div>
-            </span>
-          </div>
-        `).join('')}
-        <div style="display:flex; justify-content:space-between; align-items:baseline; padding:12px 0 2px;">
-          <span style="font-family:'Chakra Petch', sans-serif; font-size:14px; font-weight:600; color:var(--navy-800);">รวมทั้งหมด${lifetimeInterestAsOf ? `ถึง ${thaiDate(lifetimeInterestAsOf)}` : ''}</span>
-          <span style="font-family:'Chakra Petch', sans-serif; font-size:18px; font-weight:700; color:var(--gold-700);">${fmt(lifetimeInterestTotal,2)} บาท</span>
-        </div>
-      </div>
-    </div>
+    </main>
+    <main class="page-panel" data-page="history" ${uiState.page==='history'?'':'hidden'}>
+    ${buildPageHeading('ประวัติและการชำระ','ตรวจดอกเบี้ยรายปี เพิ่มรายการ และดูประวัติย้อนหลัง')}
 
-    <div class="section-title">บันทึกการผ่อนชำระ</div>
-    <div class="form-card">
-      <div class="form-row">
-        <label>วันที่ชำระ</label>
-        <input type="date" id="pay-date" value="${todayStr()}">
-        <div class="date-thai" id="date-thai"></div>
-      </div>
-      <div class="form-row">
-        <label>จำนวนเงินที่ชำระ (บาท)</label>
-        <input type="number" id="pay-amount" placeholder="เช่น 19600" inputmode="decimal" value="">
-      </div>
-      <div class="preview-box" id="preview-box"></div>
-      <div class="btn-row" style="margin-top:12px;">
-        <button class="btn btn-primary" onclick="submitPayment()">บันทึกการผ่อน</button>
-      </div>
-      <div class="receipt-upload-row">
-        <div class="ru-label">หรือเลือกใบเสร็จ SCB แบบ PDF หรือรูปถ่าย แอพจะอ่านข้อมูลในเครื่องนี้โดยไม่อัปโหลดไฟล์</div>
-        <button class="btn-upload" id="receipt-upload-btn" onclick="document.getElementById('receipt-file-input').click()">🧾 PDF / รูปภาพ</button>
-        <input type="file" id="receipt-file-input" accept="application/pdf,image/*" style="display:none" onchange="handleReceiptFile(event)">
-      </div>
-    </div>
+    ${buildAnnualInterestCard(annualInterestSummary,lifetimeInterestTotal,lifetimeInterestAsOf)}
+
+    ${buildPaymentForm()}
 
     <div class="section-title">ประวัติการผ่อนชำระ</div>
     <div class="history-list">${historyHtml}</div>
+    </main>
+
+    <main class="page-panel" data-page="settings" ${uiState.page==='settings'?'':'hidden'}>
+    ${buildSettingsPage(balance,avgPayment,lifetimeInterestTotal)}
+    </main>
   `;
 
   const amtInput = document.getElementById('pay-amount');
