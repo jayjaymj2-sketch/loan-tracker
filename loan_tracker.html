@@ -984,6 +984,244 @@ body{
 }
 .chart-stat .cs-val.gold{ color:var(--gold-700); }
 .chart-stat .cs-lbl{ font-size:10px; color:var(--ink-soft); margin-top:2px; }
+
+/* Planning hub */
+.planner-shell{
+  background:var(--white);
+  border:1px solid rgba(180,150,80,0.18);
+  border-radius:18px;
+  margin-bottom:16px;
+  box-shadow:0 5px 20px rgba(180,150,80,0.08);
+  overflow:hidden;
+}
+.planner-tabs{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  border-bottom:1px solid rgba(180,150,80,0.16);
+  padding:0 14px;
+}
+.planner-tab{
+  position:relative;
+  border:0;
+  background:transparent;
+  padding:14px 4px 12px;
+  font-family:'Chakra Petch', sans-serif;
+  font-size:12.5px;
+  font-weight:600;
+  color:var(--ink-soft);
+  cursor:pointer;
+}
+.planner-tab::after{
+  content:'';
+  position:absolute;
+  left:18%; right:18%; bottom:-1px;
+  height:2px;
+  background:transparent;
+}
+.planner-tab.active{ color:var(--navy-800); }
+.planner-tab.active::after{ background:var(--gold-500); }
+.planner-pane{ padding:20px 18px 18px; }
+.planner-heading{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:15px;
+  font-weight:600;
+  color:var(--navy-800);
+  margin-bottom:16px;
+}
+.planner-field{ margin-bottom:16px; }
+.planner-field-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:10px;
+  margin-bottom:7px;
+  font-size:11.5px;
+  color:var(--ink-soft);
+}
+.planner-field-head strong{
+  font-family:'Chakra Petch', sans-serif;
+  font-size:14px;
+  color:var(--navy-800);
+}
+.planner-input-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:var(--paper);
+  border:1px solid rgba(180,150,80,0.22);
+  border-radius:11px;
+  padding:0 12px;
+}
+.planner-input-wrap input[type="number"],
+.planner-input-wrap input[type="date"]{
+  width:100%;
+  min-width:0;
+  border:0;
+  outline:0;
+  background:transparent;
+  padding:11px 0;
+  font-family:'Chakra Petch', sans-serif;
+  font-size:17px;
+  font-weight:600;
+  color:var(--navy-800);
+}
+.planner-input-wrap span{ flex:0 0 auto; font-size:11px; color:var(--ink-soft); }
+.planner-slider{
+  width:100%;
+  height:5px;
+  margin-top:12px;
+  accent-color:var(--gold-500);
+  cursor:pointer;
+}
+.planner-slider-labels{
+  display:flex;
+  justify-content:space-between;
+  margin-top:4px;
+  font-size:9.5px;
+  color:rgba(90,99,120,0.7);
+}
+.planner-quick{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px;
+  margin-top:9px;
+}
+.planner-quick button{
+  border:1px solid rgba(180,150,80,0.22);
+  background:var(--paper);
+  color:var(--ink-soft);
+  border-radius:8px;
+  padding:7px 3px;
+  font-family:'Chakra Petch',sans-serif;
+  font-size:10.5px;
+  cursor:pointer;
+}
+.planner-quick button.active{
+  border-color:var(--gold-500);
+  color:var(--gold-700);
+  background:rgba(227,185,74,0.13);
+}
+.planner-result-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  border-top:1px solid rgba(180,150,80,0.16);
+  border-bottom:1px solid rgba(180,150,80,0.16);
+  margin:18px 0;
+}
+.planner-result{
+  padding:14px 8px;
+  text-align:center;
+  position:relative;
+}
+.planner-result + .planner-result::before{
+  content:'';
+  position:absolute;
+  left:0; top:18%; bottom:18%;
+  width:1px;
+  background:rgba(10,22,40,0.09);
+}
+.planner-result strong{
+  display:block;
+  font-family:'Chakra Petch',sans-serif;
+  font-size:16px;
+  line-height:1.25;
+  color:var(--navy-800);
+}
+.planner-result strong.gold{ color:var(--gold-700); }
+.planner-result span{ display:block; margin-top:4px; font-size:9.5px; color:var(--ink-soft); }
+.forecast-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  margin:4px 0 8px;
+}
+.forecast-head strong{ font-family:'Chakra Petch',sans-serif; font-size:13px; color:var(--navy-800); }
+.forecast-legend{ display:flex; gap:9px; font-size:9px; color:var(--ink-soft); }
+.forecast-legend span{ display:inline-flex; align-items:center; gap:4px; }
+.forecast-legend i{ width:15px; height:2px; display:inline-block; background:var(--navy-700); }
+.forecast-legend i.dashed{ background:repeating-linear-gradient(90deg,var(--gold-500) 0 5px,transparent 5px 8px); }
+.forecast-svg{ display:block; width:100%; height:auto; overflow:visible; }
+.planner-note{ margin-top:8px; font-size:10px; line-height:1.5; color:var(--ink-soft); text-align:center; }
+.target-result{
+  text-align:center;
+  padding:18px 10px;
+  margin:14px 0 18px;
+  border-top:1px solid rgba(180,150,80,0.16);
+  border-bottom:1px solid rgba(180,150,80,0.16);
+}
+.target-result span{ display:block; font-size:11px; color:var(--ink-soft); }
+.target-result strong{
+  display:block;
+  margin:4px 0;
+  font-family:'Chakra Petch',sans-serif;
+  font-size:28px;
+  color:var(--gold-700);
+}
+.month-summary{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1px;
+  background:rgba(180,150,80,0.14);
+  border-radius:12px;
+  overflow:hidden;
+  margin-top:10px;
+}
+.month-summary > div{ background:#fffdfa; padding:12px 6px; text-align:center; }
+.month-summary strong{ display:block; font-family:'Chakra Petch',sans-serif; font-size:15px; color:var(--navy-800); }
+.month-summary span{ display:block; margin-top:3px; font-size:9.5px; color:var(--ink-soft); }
+.month-progress{ margin-top:13px; }
+.month-progress-head{ display:flex; justify-content:space-between; font-size:10.5px; color:var(--ink-soft); margin-bottom:5px; }
+.month-progress-track{ height:7px; background:var(--paper); border-radius:6px; overflow:hidden; }
+.month-progress-fill{ height:100%; background:linear-gradient(90deg,var(--gold-600),var(--gold-300)); border-radius:6px; }
+.interest-summary{
+  display:grid;
+  grid-template-columns:1fr 1px 1fr;
+  gap:14px;
+  align-items:center;
+  padding:8px 0 18px;
+  border-bottom:1px solid rgba(180,150,80,0.16);
+}
+.interest-summary::before{ content:''; grid-column:2; grid-row:1; width:1px; height:48px; background:rgba(10,22,40,0.1); }
+.interest-summary > div:first-child{ grid-column:1; grid-row:1; }
+.interest-summary > div:last-child{ grid-column:3; grid-row:1; }
+.interest-summary > div{ text-align:center; }
+.interest-summary strong{ display:block; font-family:'Chakra Petch',sans-serif; font-size:18px; color:var(--navy-800); }
+.interest-summary span{ display:block; margin-top:3px; font-size:10px; color:var(--ink-soft); }
+.quality-box{
+  margin:16px 0;
+  padding:13px 14px;
+  border-radius:11px;
+  background:rgba(227,185,74,0.11);
+  border:1px solid rgba(200,151,48,0.2);
+}
+.quality-box.ok{ background:rgba(58,138,94,0.08); border-color:rgba(58,138,94,0.18); }
+.quality-title{ display:flex; justify-content:space-between; gap:8px; font-size:12px; font-weight:600; color:var(--navy-800); }
+.quality-title strong{ font-family:'Chakra Petch',sans-serif; color:var(--gold-700); }
+.quality-box.ok .quality-title strong{ color:var(--green); }
+.quality-list{ margin:8px 0 0 16px; font-size:10.5px; line-height:1.55; color:var(--ink-soft); }
+.utility-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.utility-btn{
+  border:1px solid rgba(180,150,80,0.2);
+  background:#fffdfa;
+  color:var(--navy-800);
+  border-radius:10px;
+  padding:11px 7px;
+  font-family:'Chakra Petch',sans-serif;
+  font-size:11.5px;
+  font-weight:600;
+  cursor:pointer;
+}
+.utility-btn span{ display:block; margin-top:2px; font-family:'Sarabun',sans-serif; font-size:9.5px; font-weight:400; color:var(--ink-soft); }
+.backup-meta{ margin-top:11px; text-align:center; font-size:9.5px; color:var(--ink-soft); }
+@media (max-width:370px){
+  .planner-pane{ padding:18px 14px 16px; }
+  .planner-result-grid{ grid-template-columns:1fr; }
+  .planner-result{ padding:10px 8px; }
+  .planner-result + .planner-result::before{ top:0; bottom:auto; left:18%; right:18%; width:auto; height:1px; }
+  .planner-quick{ grid-template-columns:1fr 1fr; }
+  .forecast-head{ align-items:flex-start; flex-direction:column; }
+}
 </style>
 <!-- pdf.js: ใช้สำหรับอ่านข้อความจากไฟล์ PDF ใบเสร็จ (ทำงานในเบราว์เซอร์ ไม่ส่งไฟล์ขึ้นเซิร์ฟเวอร์ใดๆ) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -1156,6 +1394,14 @@ const PAYERS = {
 
 let state = null;
 // (ไม่มีการเก็บ "ผู้ชำระ" อีกต่อไป — ยกเลิกตามที่ต้องการ)
+
+const PLANNER_PREFS_KEY = 'lt_planner_prefs_v1';
+const BACKUP_HISTORY_KEY = 'lt_backup_history_v1';
+let plannerState = { tab:'simulate', payment:null, lumpSum:0, targetDate:'' };
+try{
+  const savedPlanner = JSON.parse(localStorage.getItem(PLANNER_PREFS_KEY) || 'null');
+  if(savedPlanner && typeof savedPlanner === 'object') plannerState = Object.assign(plannerState, savedPlanner);
+}catch(e){}
 
 const SEED_PAYMENTS = [
   {"date":"2020-08-31","amount":18500.0,"interest":11316.86,"principalPaid":7183.14,"balanceAfter":3546070.86,"payer":"dad","locked":true},
@@ -1486,7 +1732,7 @@ function logoutFamily(){
   showConfirm('ออกจากระบบบนเครื่องนี้? (ต้องกรอกรหัสครอบครัวใหม่อีกครั้งเพื่อใช้งาน)', () => {
     clearPass();
     renderGate();
-  });
+  }, 'ออกจากระบบ');
 }
 
 async function manualSync(){
@@ -1650,9 +1896,415 @@ function projectPayoff(balance, monthlyPayment){
 }
 
 function addMonths(dateStr, n){
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setMonth(d.getMonth() + n);
+  const source = new Date(dateStr + 'T00:00:00');
+  const wantedDay = source.getDate();
+  const d = new Date(source.getFullYear(), source.getMonth() + n, 1);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(wantedDay, lastDay));
   return d;
+}
+
+function getMonthlyPaymentStats(){
+  const monthlyTotals = {};
+  for(const p of state.payments){
+    const monthKey = String(p.date || '').slice(0,7);
+    if(!/^\d{4}-\d{2}$/.test(monthKey)) continue;
+    monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + Number(p.amount || 0);
+  }
+  const allMonthKeys = Object.keys(monthlyTotals).sort();
+  const recentKeys = allMonthKeys.slice(-12);
+  const basisKeys = recentKeys.length ? recentKeys : allMonthKeys;
+  const average = basisKeys.length
+    ? basisKeys.reduce((sum,key)=>sum+monthlyTotals[key],0) / basisKeys.length
+    : 50000;
+  return { monthlyTotals, allMonthKeys, basisKeys, average, basisMonths:basisKeys.length };
+}
+
+function savePlannerPrefs(){
+  try{ localStorage.setItem(PLANNER_PREFS_KEY, JSON.stringify(plannerState)); }catch(e){}
+}
+
+function ensurePlannerDefaults(avgPayment, baselineProjection){
+  if(!Number.isFinite(Number(plannerState.payment)) || Number(plannerState.payment) <= 0){
+    plannerState.payment = Math.round(avgPayment);
+  }
+  plannerState.lumpSum = Math.max(0, Number(plannerState.lumpSum) || 0);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(plannerState.targetDate || '')){
+    const months = baselineProjection && Number.isFinite(baselineProjection.months) ? baselineProjection.months : 36;
+    plannerState.targetDate = localDateStr(addMonths(todayStr(), Math.max(months,1)));
+  }
+}
+
+function buildProjectionSchedule(balance, monthlyPayment, lumpSum=0, maxMonths=600){
+  const appliedLump = Math.min(Math.max(Number(lumpSum) || 0, 0), Math.max(balance,0));
+  let bal = Math.max(balance - appliedLump, 0);
+  const payment = Number(monthlyPayment) || 0;
+  const startDate = todayStr();
+  const series = [{ date:startDate, balance:bal }];
+  let totalInterest = 0;
+  let months = 0;
+  if(bal <= 0) return { months:0, totalInterest:0, series, appliedLump, finite:true };
+  if(payment <= 0) return { months:Infinity, totalInterest:Infinity, series, appliedLump, finite:false };
+
+  while(bal > 0.01 && months < maxMonths){
+    months++;
+    const paymentDate = localDateStr(addMonths(startDate, months));
+    const interest = bal * rateOnDate(paymentDate) / 12;
+    let principalPaid = payment - interest;
+    if(principalPaid <= 0){
+      return { months:Infinity, totalInterest:Infinity, series, appliedLump, finite:false };
+    }
+    principalPaid = Math.min(principalPaid, bal);
+    bal = Math.max(bal - principalPaid, 0);
+    totalInterest += interest;
+    series.push({ date:paymentDate, balance:bal });
+  }
+  const finite = bal <= 0.01;
+  return {
+    months: finite ? months : Infinity,
+    totalInterest: finite ? totalInterest : Infinity,
+    series,
+    appliedLump,
+    finite
+  };
+}
+
+function monthsUntilDate(targetDate){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(targetDate || '')) return 0;
+  const from = new Date(todayStr() + 'T00:00:00');
+  const to = new Date(targetDate + 'T00:00:00');
+  if(to <= from) return 0;
+  let months = (to.getFullYear()-from.getFullYear())*12 + (to.getMonth()-from.getMonth());
+  if(to.getDate() < from.getDate()) months--;
+  return Math.max(months, 1);
+}
+
+function requiredPaymentForMonths(balance, targetMonths){
+  if(targetMonths <= 0 || balance <= 0) return balance <= 0 ? 0 : null;
+  let low = 0;
+  let high = Math.max(balance + monthlyInterestEstimate(balance), 1);
+  for(let i=0; i<60; i++){
+    const mid = (low + high) / 2;
+    const result = buildProjectionSchedule(balance, mid, 0, targetMonths + 1);
+    if(result.finite && result.months <= targetMonths) high = mid;
+    else low = mid;
+  }
+  return Math.ceil(high / 10) * 10;
+}
+
+function formatMonthDuration(months){
+  if(!Number.isFinite(months)) return 'ยังไม่หมดหนี้';
+  if(months <= 0) return 'ทันที';
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  if(years && rest) return `${years} ปี ${rest} เดือน`;
+  if(years) return `${years} ปี`;
+  return `${rest} เดือน`;
+}
+
+function getPlannerScenario(balance, avgPayment){
+  const baseline = buildProjectionSchedule(balance, avgPayment, 0);
+  const planned = buildProjectionSchedule(balance, plannerState.payment, plannerState.lumpSum);
+  const sameAsBaseline = Math.abs(Number(plannerState.payment)-avgPayment) < 1 && Number(plannerState.lumpSum) === 0;
+  return {
+    baseline,
+    planned,
+    monthsSaved: baseline.finite && planned.finite ? Math.max(baseline.months - planned.months, 0) : 0,
+    interestSaved: sameAsBaseline ? 0 : (baseline.finite && planned.finite ? Math.max(baseline.totalInterest - planned.totalInterest, 0) : 0),
+    payoffDate: planned.finite ? localDateStr(addMonths(todayStr(), planned.months)) : ''
+  };
+}
+
+function buildForecastSVG(actualSeries, projection){
+  if(!projection || !projection.series || projection.series.length < 2){
+    return '<div class="planner-note">ยอดผ่อนยังไม่เพียงพอสำหรับสร้างแนวโน้ม</div>';
+  }
+  const cutoff = addMonths(todayStr(), -12);
+  let actual = actualSeries.filter(p => new Date(p.date+'T00:00:00') >= cutoff);
+  if(actual.length < 2) actual = actualSeries.slice(-8);
+  const forecast = projection.series;
+  const W=320, H=176, padL=8, padR=8, padT=18, padB=24;
+  const startT = new Date(actual[0].date+'T00:00:00').getTime();
+  const endT = new Date(forecast[forecast.length-1].date+'T00:00:00').getTime();
+  const maxBalance = Math.max(...actual.map(p=>p.balance), ...forecast.map(p=>p.balance), 1) * 1.06;
+  const xOf = date => padL + (new Date(date+'T00:00:00').getTime()-startT) / Math.max(endT-startT,1) * (W-padL-padR);
+  const yOf = bal => padT + (1 - bal/maxBalance) * (H-padT-padB);
+  const pathOf = pts => pts.map((p,i)=>`${i?'L':'M'}${xOf(p.date).toFixed(1)},${yOf(p.balance).toFixed(1)}`).join(' ');
+  let grid='';
+  for(let i=0;i<=2;i++){
+    const val=maxBalance*i/2, y=yOf(val);
+    grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="rgba(180,150,80,0.14)"/>`;
+    grid += `<text x="${padL+2}" y="${(y-3).toFixed(1)}" font-size="7.5" fill="#5a6378" font-family="Chakra Petch">${(val/1e6).toFixed(1)}M</text>`;
+  }
+  const milestones=[];
+  for(const item of [{value:1000000,label:'1 ล้าน'},{value:500000,label:'5 แสน'},{value:0,label:'หมดหนี้'}]){
+    if(forecast[0].balance <= item.value && item.value !== 0) continue;
+    const point = item.value === 0 ? forecast[forecast.length-1] : forecast.find(p=>p.balance<=item.value);
+    if(point && !milestones.some(m=>m.date===point.date)) milestones.push({ ...point, label:item.label });
+  }
+  const markerHtml = milestones.map((p,i)=>{
+    const x=xOf(p.date), y=yOf(p.balance);
+    const anchor=x>W-62?'end':'start';
+    const tx=x>W-62?x-4:x+4;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#c89730" stroke="#fff" stroke-width="1.5"/><text x="${tx.toFixed(1)}" y="${Math.max(y-6,9).toFixed(1)}" text-anchor="${anchor}" font-size="7.5" fill="#8a6418" font-family="Chakra Petch">${p.label}</text>`;
+  }).join('');
+  const labelPoints=[actual[0], actual[actual.length-1], forecast[forecast.length-1]];
+  const xLabels=labelPoints.map((p,i)=>`<text x="${xOf(p.date).toFixed(1)}" y="${H-6}" text-anchor="${i===0?'start':i===labelPoints.length-1?'end':'middle'}" font-size="7.5" fill="#5a6378" font-family="Chakra Petch">${thaiDate(p.date)}</text>`).join('');
+  return `<svg class="forecast-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    ${grid}
+    <path d="${pathOf(actual)}" fill="none" stroke="#16315a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${pathOf(forecast)}" fill="none" stroke="#c89730" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round" stroke-linejoin="round"/>
+    ${markerHtml}${xLabels}
+  </svg>`;
+}
+
+function analyzeDataQuality(){
+  const issues=[];
+  const seen=new Map();
+  const payments=state.payments.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  let previousBalance = state.trackingAnchorBalance != null ? state.trackingAnchorBalance : state.originalPrincipal;
+  let previousDate = state.trackingAnchorDate != null ? state.trackingAnchorDate : state.originalDate;
+  let zeroInterestCount=0;
+  payments.forEach((p,index)=>{
+    const row=index+1;
+    const amount=Number(p.amount), interest=Number(p.interest), principal=Number(p.principalPaid), balance=Number(p.balanceAfter);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(p.date || '') || ![amount,interest,principal,balance].every(Number.isFinite)){
+      issues.push(`รายการที่ ${row} มีข้อมูลไม่ครบหรือรูปแบบไม่ถูกต้อง`);
+      return;
+    }
+    const signature=`${p.date}|${amount.toFixed(2)}|${balance.toFixed(2)}`;
+    if(seen.has(signature)) issues.push(`อาจมีรายการซ้ำวันที่ ${thaiDate(p.date)} ยอด ${fmt(amount,0)} บาท`);
+    seen.set(signature,true);
+    if(Math.abs((interest+principal)-amount) > 1) issues.push(`ยอดแยกต้น/ดอกไม่ตรงยอดชำระ วันที่ ${thaiDate(p.date)}`);
+    const actualDrop=previousBalance-balance;
+    if(Math.abs(actualDrop-principal) > 1){
+      const gap=daysBetween(new Date(previousDate+'T00:00:00'),new Date(p.date+'T00:00:00'));
+      issues.push(gap>45?`มีช่วงข้อมูลขาดก่อนวันที่ ${thaiDate(p.date)}`:`ยอดคงเหลือไม่ต่อเนื่อง วันที่ ${thaiDate(p.date)}`);
+    }
+    if(balance > previousBalance + 1) issues.push(`ยอดคงเหลือเพิ่มขึ้นผิดปกติ วันที่ ${thaiDate(p.date)}`);
+    if(interest === 0 && principal > 0) zeroInterestCount++;
+    previousBalance=balance;
+    previousDate=p.date;
+  });
+  return { issues:[...new Set(issues)], zeroInterestCount };
+}
+
+function getCurrentMonthSummary(avgPayment){
+  const key=todayStr().slice(0,7);
+  const rows=state.payments.filter(p=>String(p.date||'').slice(0,7)===key);
+  const paid=rows.reduce((s,p)=>s+Number(p.amount||0),0);
+  const principal=rows.reduce((s,p)=>s+Number(p.principalPaid||0),0);
+  const interest=rows.reduce((s,p)=>s+Number(p.interest||0),0);
+  const pct=avgPayment>0?Math.max(0,Math.min(100,paid/avgPayment*100)):0;
+  return {paid,principal,interest,pct,count:rows.length,goalMet:paid>=avgPayment};
+}
+
+function setPlannerTab(tab){
+  if(!['simulate','target','data'].includes(tab)) return;
+  plannerState.tab=tab;
+  savePlannerPrefs();
+  render();
+  requestAnimationFrame(()=>document.getElementById('planning-hub')?.scrollIntoView({block:'start'}));
+}
+
+function updatePlannerPayment(value){
+  const payment=Math.max(0,Number(value)||0);
+  plannerState.payment=payment;
+  const numberInput=document.getElementById('planner-payment-number');
+  const slider=document.getElementById('planner-payment-slider');
+  if(numberInput && document.activeElement!==numberInput) numberInput.value=payment;
+  if(slider) slider.value=Math.min(Math.max(payment,Number(slider.min)),Number(slider.max));
+  const display=document.getElementById('planner-payment-display');
+  if(display) display.textContent=`${fmt(payment,0)} บาท/เดือน`;
+  savePlannerPrefs();
+  refreshPlannerSimulation();
+}
+
+function updatePlannerLumpSum(value){
+  plannerState.lumpSum=Math.max(0,Number(value)||0);
+  const input=document.getElementById('planner-lump-number');
+  if(input && document.activeElement!==input) input.value=plannerState.lumpSum;
+  const display=document.getElementById('planner-lump-display');
+  if(display) display.textContent=`${fmt(plannerState.lumpSum,0)} บาท`;
+  document.querySelectorAll('[data-lump]').forEach(btn=>btn.classList.toggle('active',Number(btn.dataset.lump)===plannerState.lumpSum));
+  savePlannerPrefs();
+  refreshPlannerSimulation();
+}
+
+function refreshPlannerSimulation(){
+  const stats=getMonthlyPaymentStats();
+  const scenario=getPlannerScenario(state.currentBalance,stats.average);
+  const setText=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text;};
+  setText('planner-payoff-result',scenario.payoffDate?thaiDate(scenario.payoffDate):'ยังไม่หมดหนี้');
+  setText('planner-time-result',scenario.planned.finite?formatMonthDuration(scenario.planned.months):'เพิ่มยอดผ่อน');
+  setText('planner-saved-result',scenario.planned.finite?`${fmt(scenario.interestSaved,0)} บาท`:'—');
+  setText('planner-months-note',scenario.planned.finite?(scenario.monthsSaved>0?`เร็วขึ้น ${formatMonthDuration(scenario.monthsSaved)}`:'เท่าแผนปัจจุบัน'):'ยอดผ่อนต่ำกว่าดอกเบี้ย');
+  const chart=document.getElementById('forecast-chart');
+  if(chart) chart.innerHTML=buildForecastSVG(buildBalanceSeries(),scenario.planned);
+}
+
+function updatePlannerTarget(value){
+  plannerState.targetDate=value;
+  savePlannerPrefs();
+  render();
+  requestAnimationFrame(()=>document.getElementById('planning-hub')?.scrollIntoView({block:'start'}));
+}
+
+function saveAutoSnapshot(label){
+  if(!state) return;
+  try{
+    const history=JSON.parse(localStorage.getItem(BACKUP_HISTORY_KEY)||'[]');
+    history.unshift({label:label||'ก่อนแก้ไข',createdAt:new Date().toISOString(),state:JSON.parse(JSON.stringify(state))});
+    localStorage.setItem(BACKUP_HISTORY_KEY,JSON.stringify(history.slice(0,5)));
+  }catch(e){}
+}
+
+function getBackupHistory(){
+  try{ const data=JSON.parse(localStorage.getItem(BACKUP_HISTORY_KEY)||'[]'); return Array.isArray(data)?data:[]; }
+  catch(e){ return []; }
+}
+
+function downloadBlob(content,type,filename){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),500);
+}
+
+function exportPaymentsCSV(){
+  const rows=[['วันที่','ยอดชำระ','ดอกเบี้ย','ตัดเงินต้น','ยอดคงเหลือ','แหล่งข้อมูล']];
+  state.payments.forEach(p=>rows.push([p.date,p.amount,p.interest,p.principalPaid,p.balanceAfter,p.source||'บันทึกในแอป']));
+  const csv='\ufeff'+rows.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  downloadBlob(csv,'text/csv;charset=utf-8',`loan-tracker-${todayStr()}.csv`);
+  showToast('ดาวน์โหลด CSV แล้ว ✓');
+}
+
+function exportBackupJSON(){
+  const payload={app:'loan-tracker',schemaVersion:1,exportedAt:new Date().toISOString(),state};
+  downloadBlob(JSON.stringify(payload,null,2),'application/json',`loan-tracker-backup-${todayStr()}.json`);
+  showToast('สำรองข้อมูลแล้ว ✓');
+}
+
+function restoreStateLocally(restoredState,label){
+  saveAutoSnapshot(label||'ก่อนกู้คืนข้อมูล');
+  state=JSON.parse(JSON.stringify(restoredState));
+  state.seedVersion=SEED_VERSION;
+  recomputeFromPayments(Array.isArray(state.payments)?state.payments:[]);
+  clearPass();
+  syncStatus={online:false,lastSync:null,error:'ข้อมูลกู้คืนในเครื่อง',syncing:false};
+  saveState();
+  render();
+  showToast('กู้คืนในเครื่องแล้ว ✓ ระบบกลางยังไม่ถูกเปลี่ยน');
+}
+
+function handleBackupRestore(event){
+  const file=event.target.files&&event.target.files[0];
+  event.target.value='';
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const parsed=JSON.parse(reader.result);
+      const restored=parsed&&parsed.state?parsed.state:parsed;
+      if(!restored || !Array.isArray(restored.payments) || !Number.isFinite(Number(restored.originalPrincipal))){
+        throw new Error('invalid backup');
+      }
+      showConfirm('กู้คืนสำเนานี้ในเครื่อง? แอพจะออกจากระบบครอบครัวเพื่อไม่ให้ข้อมูลในระบบกลางถูกเขียนทับ',()=>restoreStateLocally(restored,'ก่อนกู้คืนจากไฟล์'),'กู้คืนข้อมูล');
+    }catch(e){ showToast('ไฟล์สำรองไม่ถูกต้อง'); }
+  };
+  reader.readAsText(file);
+}
+
+function restoreLatestSnapshot(){
+  const latest=getBackupHistory()[0];
+  if(!latest || !latest.state){ showToast('ยังไม่มีประวัติก่อนแก้ไข'); return; }
+  showConfirm(`ย้อนกลับไปก่อนการแก้ไขล่าสุด (${latest.label})? ระบบกลางจะไม่ถูกเปลี่ยน`,()=>restoreStateLocally(latest.state,'ก่อนย้อนกลับข้อมูล'),'ย้อนกลับ');
+}
+
+function exportPDFReport(){
+  const stats=getMonthlyPaymentStats();
+  const projection=buildProjectionSchedule(state.currentBalance,stats.average,0);
+  const annual=buildAnnualInterestSummary();
+  const paidInterest=annual.reduce((s,y)=>s+y.amount,0);
+  const win=window.open('','_blank');
+  if(!win){ showToast('เบราว์เซอร์ปิดกั้นหน้ารายงาน กรุณาอนุญาตป๊อปอัป'); return; }
+  const annualRows=annual.map(y=>`<tr><td>ปี ${y.year+543}</td><td>${fmt(y.amount,2)} บาท</td><td>${y.source}</td></tr>`).join('');
+  const paymentRows=state.payments.slice().reverse().map(p=>`<tr><td>${thaiDate(p.date)}</td><td>${fmt(p.amount,2)}</td><td>${fmt(p.interest,2)}</td><td>${fmt(p.principalPaid,2)}</td><td>${fmt(p.balanceAfter,2)}</td></tr>`).join('');
+  win.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>รายงานหนี้บ้าน ${todayStr()}</title><style>body{font-family:Arial,sans-serif;color:#10223d;margin:32px}h1{font-size:24px}h2{font-size:17px;margin-top:26px;color:#8a6418}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.box{border:1px solid #dccda8;border-radius:10px;padding:12px}.box small{display:block;color:#667085}.box strong{display:block;font-size:18px;margin-top:5px}table{width:100%;border-collapse:collapse;font-size:11px;margin-top:10px}th,td{padding:7px;border-bottom:1px solid #e8dfca;text-align:right}th:first-child,td:first-child{text-align:left}@media print{button{display:none}body{margin:16mm}}</style></head><body><button onclick="window.print()">พิมพ์ / บันทึกเป็น PDF</button><h1>รายงานสรุปหนี้บ้าน</h1><p>ข้อมูล ณ ${thaiDate(todayStr())}</p><div class="summary"><div class="box"><small>เงินต้นคงเหลือ</small><strong>${fmt(state.currentBalance,2)} บาท</strong></div><div class="box"><small>ยอดผ่อนเฉลี่ย</small><strong>${fmt(stats.average,0)} บาท/เดือน</strong></div><div class="box"><small>คาดว่าหมดหนี้</small><strong>${projection.finite?thaiDate(localDateStr(addMonths(todayStr(),projection.months))):'ยังประมาณการไม่ได้'}</strong></div><div class="box"><small>ดอกเบี้ยจ่ายแล้ว</small><strong>${fmt(paidInterest,2)} บาท</strong></div><div class="box"><small>ดอกเบี้ยในอนาคต</small><strong>${projection.finite?fmt(projection.totalInterest,2):'—'} บาท</strong></div><div class="box"><small>ดอกเบี้ยตลอดสัญญาโดยประมาณ</small><strong>${projection.finite?fmt(paidInterest+projection.totalInterest,2):'—'} บาท</strong></div></div><h2>สรุปดอกเบี้ยรายปี</h2><table><thead><tr><th>ปี</th><th>ดอกเบี้ย</th><th>ที่มา</th></tr></thead><tbody>${annualRows}</tbody></table><h2>ประวัติการผ่อนชำระ</h2><table><thead><tr><th>วันที่</th><th>ยอดชำระ</th><th>ดอกเบี้ย</th><th>เงินต้น</th><th>คงเหลือ</th></tr></thead><tbody>${paymentRows}</tbody></table></body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(),350);
+}
+
+function buildPlannerHub(balance,avgPayment,avgBasisMonths,lifetimeInterestTotal){
+  ensurePlannerDefaults(avgPayment,projectPayoff(balance,avgPayment));
+  const scenario=getPlannerScenario(balance,avgPayment);
+  const actualSeries=buildBalanceSeries();
+  const targetMonths=monthsUntilDate(plannerState.targetDate);
+  const requiredPayment=requiredPaymentForMonths(balance,targetMonths);
+  const paymentDifference=requiredPayment==null?null:requiredPayment-avgPayment;
+  const month=getCurrentMonthSummary(avgPayment);
+  const quality=analyzeDataQuality();
+  const history=getBackupHistory();
+  const latestBackup=history[0];
+  const maxPayment=Math.max(100000,Math.ceil(avgPayment*2/1000)*1000,Number(plannerState.payment)||0);
+  const payoffDate=scenario.payoffDate?thaiDate(scenario.payoffDate):'ยังไม่หมดหนี้';
+  const qualityItems=quality.issues.slice(0,3).map(x=>`<li>${x}</li>`).join('');
+  const extraIssues=Math.max(quality.issues.length-3,0);
+  const targetDescription=paymentDifference==null?'เลือกวันที่ในอนาคต':paymentDifference>0?`มากกว่าค่าเฉลี่ยปัจจุบัน ${fmt(paymentDifference,0)} บาท/เดือน`:`น้อยกว่าค่าเฉลี่ยปัจจุบัน ${fmt(Math.abs(paymentDifference),0)} บาท/เดือน`;
+
+  let pane='';
+  if(plannerState.tab==='simulate'){
+    pane=`<div class="planner-pane" id="planner-pane-simulate">
+      <div class="planner-heading">ลองปรับยอดผ่อนต่อเดือน</div>
+      <div class="planner-field">
+        <div class="planner-field-head"><span>ยอดผ่อน</span><strong id="planner-payment-display">${fmt(plannerState.payment,0)} บาท/เดือน</strong></div>
+        <div class="planner-input-wrap"><input id="planner-payment-number" type="number" inputmode="numeric" min="1000" step="1000" value="${Math.round(plannerState.payment)}" oninput="updatePlannerPayment(this.value)"><span>บาท/เดือน</span></div>
+        <input id="planner-payment-slider" class="planner-slider" type="range" min="10000" max="${maxPayment}" step="1" value="${Math.min(plannerState.payment,maxPayment)}" oninput="updatePlannerPayment(this.value)">
+        <div class="planner-slider-labels"><span>10,000</span><span>${fmt(maxPayment,0)}+</span></div>
+      </div>
+      <div class="planner-field">
+        <div class="planner-field-head"><span>เงินก้อนเพิ่ม (ไม่บังคับ)</span><strong id="planner-lump-display">${fmt(plannerState.lumpSum,0)} บาท</strong></div>
+        <div class="planner-input-wrap"><input id="planner-lump-number" type="number" inputmode="numeric" min="0" step="10000" value="${Math.round(plannerState.lumpSum)}" oninput="updatePlannerLumpSum(this.value)"><span>บาท</span></div>
+        <div class="planner-quick">${[0,50000,100000,200000].map(v=>`<button data-lump="${v}" class="${plannerState.lumpSum===v?'active':''}" onclick="updatePlannerLumpSum(${v})">${v===0?'ไม่เพิ่ม':'+'+fmt(v/1000,0)+'k'}</button>`).join('')}</div>
+      </div>
+      <div class="planner-result-grid">
+        <div class="planner-result"><strong id="planner-time-result">${scenario.planned.finite?formatMonthDuration(scenario.planned.months):'เพิ่มยอดผ่อน'}</strong><span id="planner-months-note">${scenario.planned.finite?(scenario.monthsSaved>0?`เร็วขึ้น ${formatMonthDuration(scenario.monthsSaved)}`:'เท่าแผนปัจจุบัน'):'ยอดผ่อนต่ำกว่าดอกเบี้ย'}</span></div>
+        <div class="planner-result"><strong class="gold" id="planner-saved-result">${scenario.planned.finite?fmt(scenario.interestSaved,0)+' บาท':'—'}</strong><span>ประหยัดดอกเบี้ย</span></div>
+        <div class="planner-result"><strong id="planner-payoff-result">${payoffDate}</strong><span>คาดว่าหมดหนี้</span></div>
+      </div>
+      <div class="forecast-head"><strong>แนวโน้มในอนาคต</strong><div class="forecast-legend"><span><i></i>ยอดจริง</span><span><i class="dashed"></i>ประมาณการ</span></div></div>
+      <div id="forecast-chart">${buildForecastSVG(actualSeries,scenario.planned)}</div>
+      <div class="planner-note">ประมาณการจากเงินต้นปัจจุบัน อัตราดอกเบี้ยตามเงื่อนไขที่บันทึกไว้ และยอดผ่อนที่เลือก</div>
+    </div>`;
+  }else if(plannerState.tab==='target'){
+    pane=`<div class="planner-pane" id="planner-pane-target">
+      <div class="planner-heading">ตั้งเป้าหมายวันปลดหนี้</div>
+      <div class="planner-field"><div class="planner-field-head"><span>อยากปิดหนี้ภายในวันที่</span><strong>${thaiDate(plannerState.targetDate)}</strong></div><div class="planner-input-wrap"><input type="date" min="${todayStr()}" value="${plannerState.targetDate}" onchange="updatePlannerTarget(this.value)"></div></div>
+      <div class="target-result"><span>ต้องผ่อนอย่างน้อย</span><strong>${requiredPayment==null?'—':fmt(requiredPayment,0)+' บาท/เดือน'}</strong><span>${targetDescription}</span></div>
+      <div class="planner-heading" style="margin-bottom:8px;">สรุปเดือนนี้</div>
+      <div class="month-summary"><div><strong>${fmt(month.paid,0)}</strong><span>ยอดชำระทั้งหมด</span></div><div><strong>${fmt(month.principal,0)}</strong><span>ตัดเงินต้น</span></div><div><strong>${fmt(month.interest,0)}</strong><span>ดอกเบี้ย</span></div></div>
+      <div class="month-progress"><div class="month-progress-head"><span>${month.goalMet?'ถึงเป้าหมายเดือนนี้แล้ว':'ความคืบหน้าเทียบค่าเฉลี่ย'}</span><strong>${month.pct.toFixed(0)}%</strong></div><div class="month-progress-track"><div class="month-progress-fill" style="width:${month.pct}%"></div></div></div>
+      <div class="planner-note">เป้าหมายรายเดือนอ้างอิงยอดผ่อนเฉลี่ย ${fmt(avgPayment,0)} บาท (${avgBasisMonths} เดือนล่าสุด)</div>
+    </div>`;
+  }else{
+    pane=`<div class="planner-pane" id="planner-pane-data">
+      <div class="planner-heading">ข้อมูล รายงาน และการสำรอง</div>
+      <div class="interest-summary"><div><strong>${scenario.baseline.finite?fmt(scenario.baseline.totalInterest,0):'—'}</strong><span>ดอกเบี้ยที่คาดว่าจะจ่ายในอนาคต</span></div><div><strong>${scenario.baseline.finite?fmt(lifetimeInterestTotal+scenario.baseline.totalInterest,0):'—'}</strong><span>ดอกเบี้ยตลอดสัญญาโดยประมาณ</span></div></div>
+      <div class="quality-box ${quality.issues.length?'':'ok'}"><div class="quality-title"><span>${quality.issues.length?'พบข้อมูลที่ควรตรวจสอบ':'ข้อมูลต่อเนื่องดี'}</span><strong>${quality.issues.length?quality.issues.length+' จุด':'ผ่าน'}</strong></div>${quality.issues.length?`<ul class="quality-list">${qualityItems}${extraIssues?`<li>และอีก ${extraIssues} จุด</li>`:''}</ul>`:`<div class="planner-note" style="text-align:left;">ไม่พบรายการซ้ำหรือยอดคงเหลือขาดช่วง · มีรายการตัดเงินต้นเพิ่ม ${quality.zeroInterestCount} รายการ</div>`}</div>
+      <div class="utility-grid">
+        <button class="utility-btn" onclick="exportPDFReport()">รายงาน PDF<span>เปิดหน้าพิมพ์และบันทึก PDF</span></button>
+        <button class="utility-btn" onclick="exportPaymentsCSV()">ส่งออก CSV<span>ประวัติทุกรายการ</span></button>
+        <button class="utility-btn" onclick="exportBackupJSON()">สำรองข้อมูล<span>ไฟล์ JSON สำหรับกู้คืน</span></button>
+        <button class="utility-btn" onclick="document.getElementById('backup-restore-input').click()">กู้คืนข้อมูล<span>กู้คืนในเครื่องอย่างปลอดภัย</span></button>
+        <button class="utility-btn" onclick="restoreLatestSnapshot()" style="grid-column:1/-1;">ย้อนกลับการแก้ไขล่าสุด<span>${latestBackup?`${latestBackup.label} · ${new Date(latestBackup.createdAt).toLocaleString('th-TH')}`:'ยังไม่มีประวัติการแก้ไข'}</span></button>
+      </div>
+      <input id="backup-restore-input" type="file" accept="application/json,.json" style="display:none" onchange="handleBackupRestore(event)">
+      <div class="backup-meta">ไฟล์สำรองเก็บข้อมูลหนี้และประวัติการผ่อนทั้งหมด · การกู้คืนไม่เขียนทับระบบกลางอัตโนมัติ</div>
+    </div>`;
+  }
+
+  return `<div class="section-title" id="planning-hub">วางแผนปลดหนี้</div><section class="planner-shell" aria-label="เครื่องมือวางแผนปลดหนี้"><div class="planner-tabs" role="tablist"><button class="planner-tab ${plannerState.tab==='simulate'?'active':''}" role="tab" aria-selected="${plannerState.tab==='simulate'}" onclick="setPlannerTab('simulate')">จำลอง</button><button class="planner-tab ${plannerState.tab==='target'?'active':''}" role="tab" aria-selected="${plannerState.tab==='target'}" onclick="setPlannerTab('target')">เป้าหมาย</button><button class="planner-tab ${plannerState.tab==='data'?'active':''}" role="tab" aria-selected="${plannerState.tab==='data'}" onclick="setPlannerTab('data')">ข้อมูล</button></div>${pane}</section>`;
 }
 
 function showToast(msg){
@@ -1662,12 +2314,13 @@ function showToast(msg){
   setTimeout(()=> t.classList.remove('show'), 2200);
 }
 
-function showConfirm(message, onConfirm){
+function showConfirm(message, onConfirm, confirmLabel='ลบรายการ'){
   const overlay = document.getElementById('confirm-overlay');
   const textEl = document.getElementById('confirm-text');
   const okBtn = document.getElementById('confirm-ok');
   const cancelBtn = document.getElementById('confirm-cancel');
   textEl.textContent = message;
+  okBtn.textContent = confirmLabel;
   overlay.classList.add('show');
 
   function close(){
@@ -1926,18 +2579,10 @@ function render(){
 
   // ยอดผ่อนเฉลี่ย/เดือน: ใช้ "12 เดือนล่าสุด" เพื่อสะท้อนกำลังผ่อนปัจจุบัน
   // (ถ้าเฉลี่ยทุกเดือนตั้งแต่อดีต ช่วงที่เคยผ่อนน้อยจะถ่วงให้ประมาณการช้ากว่าความจริง)
-  const monthlyTotals = {};
-  for(const p of state.payments){
-    const monthKey = p.date.slice(0,7); // YYYY-MM
-    monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + p.amount;
-  }
-  const allMonthKeys = Object.keys(monthlyTotals).sort(); // เก่า -> ใหม่
-  const recentKeys = allMonthKeys.slice(-12); // 12 เดือนล่าสุด
-  const avgBasisKeys = recentKeys.length > 0 ? recentKeys : allMonthKeys;
-  const avgPayment = avgBasisKeys.length > 0
-    ? avgBasisKeys.reduce((s,k)=>s+monthlyTotals[k],0) / avgBasisKeys.length
-    : 50000;
-  const avgBasisMonths = avgBasisKeys.length;
+  const paymentStats = getMonthlyPaymentStats();
+  const monthlyTotals = paymentStats.monthlyTotals;
+  const avgPayment = paymentStats.average;
+  const avgBasisMonths = paymentStats.basisMonths;
   const proj = projectPayoff(balance, avgPayment);
 
   let payoffYearsText = '—';
@@ -2116,6 +2761,8 @@ function render(){
         <span>${payoffBasisText}</span>
       </div>
     </section>
+
+    ${buildPlannerHub(balance, avgPayment, avgBasisMonths, lifetimeInterestTotal)}
 
     ${buildChartCard()}
 
@@ -2420,6 +3067,7 @@ async function confirmReceiptImport(){
     }
   }
 
+  saveAutoSnapshot('ก่อนนำเข้าใบเสร็จ');
   state.payments.push(newPayment);
   recomputeFromPayments(state.payments); // จัดเรียงตามวันที่ใหม่ เผื่อใบเสร็จนี้เป็นรายการเก่าที่เติมช่องว่างย้อนหลัง
 
@@ -2492,6 +3140,7 @@ async function submitPayment(){
     if(submitBtn) submitBtn.disabled = false;
   }
 
+  saveAutoSnapshot('ก่อนบันทึกการผ่อน');
   state.payments.push(newPayment);
   state.currentBalance = newBalance;
   state.lastUpdateDate = payDate;
@@ -2553,6 +3202,7 @@ async function doDeleteSynced(idx){
     showToast('ไม่มีอินเทอร์เน็ต ลบไม่สำเร็จ');
     return;
   }
+  saveAutoSnapshot('ก่อนลบรายการล่าสุด');
   state.payments.splice(idx, 1);
   recomputeFromPayments(state.payments);
   saveState();
@@ -2561,6 +3211,7 @@ async function doDeleteSynced(idx){
 }
 
 async function doDeletePayment(idx){
+  saveAutoSnapshot('ก่อนลบรายการ');
   const removedWasLocked = !!(state.payments[idx] && state.payments[idx].locked);
   state.payments.splice(idx, 1);
 
