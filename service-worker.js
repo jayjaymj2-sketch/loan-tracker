@@ -2,15 +2,16 @@
 // หน้าที่: เก็บไฟล์หน้าแอพ (HTML/manifest/ไอคอน) ไว้ใช้ออฟไลน์ได้
 // ข้อมูลจริง (จาก Google Sheets/Apps Script) จะไม่ถูก cache เพราะต้องสดเสมอ
 
-const CACHE_NAME = 'loan-tracker-cache-v15'; // เพิ่มเลขนี้ทุกครั้งที่อัปเดตไฟล์ เพื่อบังคับเครื่องผู้ใช้ดึงเวอร์ชันใหม่
+const CACHE_NAME = 'loan-tracker-cache-v16'; // เพิ่มเลขนี้ทุกครั้งที่อัปเดตไฟล์ เพื่อบังคับเครื่องผู้ใช้ดึงเวอร์ชันใหม่
 const ASSETS = [
   './loan_tracker.html',
-  './styles.css?v=15',
-  './js/app.js?v=15',
+  './styles.css?v=16',
+  './js/app.js?v=16',
   './js/receipt-parser.js',
   './js/sync-version.js',
-  './js/loan-analytics.js?v=15',
-  './js/receipt-store.js?v=15',
+  './js/loan-analytics.js?v=16',
+  './js/receipt-store.js?v=16',
+  './js/encrypted-backup.js?v=16',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

@@ -35,6 +35,12 @@
   function save(record){ return transact('readwrite',store=>store.put(record)); }
   function get(paymentId){ return transact('readonly',store=>store.get(String(paymentId))); }
   function remove(paymentId){ return transact('readwrite',store=>store.delete(String(paymentId))); }
+  function listRecords(){ return transact('readonly',store=>store.getAll()).then(records=>records||[]); }
+  async function saveMany(records){
+    const items=Array.isArray(records)?records:[];
+    for(const record of items) await save(record);
+    return items.length;
+  }
   async function listMeta(){
     const records=await transact('readonly',store=>store.getAll());
     return (records||[]).map(({paymentId,name,type,size,createdAt})=>({paymentId,name,type,size,createdAt}));
@@ -43,5 +49,5 @@
     const items=await listMeta();
     return {count:items.length,totalBytes:items.reduce((sum,item)=>sum+Number(item.size||0),0)};
   }
-  return {save,get,remove,listMeta,stats};
+  return {save,get,remove,listMeta,listRecords,saveMany,stats};
 });

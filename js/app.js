@@ -26,6 +26,7 @@ const SEED_VERSION = 7; // เพิ่มเลขนี้เมื่อต�
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGxP7pb_aVptv9rxn_UR61W895yjDeqL-ujLjRqNP0KZmB5sgNhYSIZ15pcX4LI5Ka/exec';
 const PASS_KEY = 'lt_family_pass';
 const CACHE_KEY = 'lt_local_cache_v2';
+const IS_LOCAL_QA = ['localhost','127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).get('qa') === '1';
 
 // ล็อกไม่ให้ลบรายการที่มีอยู่แล้วก่อนเวลานี้ทั้งหมด (รวมที่นำเข้า/บันทึกไปก่อนหน้าแล้ว)
 // ลบได้เฉพาะรายการที่ "กรอกใหม่หลังจากนี้" เท่านั้น (เช็คจาก updatedAt ที่เซิร์ฟเวอร์ประทับเวลาให้ตอนบันทึก)
@@ -41,7 +42,7 @@ function canDeletePayment(p){
 
 
 function isConfigured(){
-  return !!APPS_SCRIPT_URL && APPS_SCRIPT_URL.indexOf('PASTE_') !== 0;
+  return !IS_LOCAL_QA && !!APPS_SCRIPT_URL && APPS_SCRIPT_URL.indexOf('PASTE_') !== 0;
 }
 function getSavedPass(){
   try{ return localStorage.getItem(PASS_KEY); }catch(e){ return null; }
@@ -117,10 +118,15 @@ let state = null;
 const PLANNER_PREFS_KEY = 'lt_planner_prefs_v1';
 const BACKUP_HISTORY_KEY = 'lt_backup_history_v1';
 const UI_PREFS_KEY = 'lt_ui_prefs_v1';
+const REMINDER_PREFS_KEY = 'lt_reminder_prefs_v1';
+const RECONCILIATION_KEY = 'lt_reconciliation_history_v1';
 let plannerState = { tab:'simulate', payment:null, lumpSum:0, targetDate:'' };
-let uiState = { page:'overview', fontSize:'normal' };
+let uiState = { page:'overview', fontSize:'normal', historyMode:'list' };
+let reminderPrefs = { dueEnabled:true, dueDay:26, goalEnabled:true, lastNotified:'' };
 let historyFilters = { query:'', year:'all', type:'all' };
 let receiptAttachmentMeta = new Map();
+let receiptBackupStats = {count:0,totalBytes:0};
+let reconciliationResult = null;
 let pendingReceiptFile = null;
 let pendingReceiptTargetId = null;
 let currentReceiptViewer = null;
@@ -133,6 +139,10 @@ try{
 try{
   const savedUi = JSON.parse(localStorage.getItem(UI_PREFS_KEY) || 'null');
   if(savedUi && typeof savedUi === 'object') uiState = Object.assign(uiState, savedUi);
+}catch(e){}
+try{
+  const savedReminders = JSON.parse(localStorage.getItem(REMINDER_PREFS_KEY) || 'null');
+  if(savedReminders && typeof savedReminders === 'object') reminderPrefs = Object.assign(reminderPrefs, savedReminders);
 }catch(e){}
 if(!['overview','plan','history','settings'].includes(uiState.page)) uiState.page='overview';
 if(!['normal','large','xlarge'].includes(uiState.fontSize)) uiState.fontSize='normal';
@@ -148,6 +158,7 @@ function applyFontPreference(){
 function setAppPage(page){
   if(!['overview','plan','history','settings'].includes(page)) return;
   uiState.page=page;
+  if(page!=='history') uiState.historyMode='list';
   if(page==='plan' && plannerState.tab==='data') plannerState.tab='simulate';
   saveUiPrefs();
   render();
@@ -307,6 +318,7 @@ async function loadState(){
   const cached = localCacheGet();
   if(cached && cached.seedVersion === SEED_VERSION){
     state = cached;
+    if(!Number.isFinite(Number(state.currentMRR))) state.currentMRR=6.60;
     return;
   }
 
@@ -320,6 +332,7 @@ async function loadState(){
     currentBalance: lastPayment.balanceAfter, // เงินต้นล้วนๆ หลังตัดงวดล่าสุด (25 มิ.ย. 2026)
     lastUpdateDate: lastPayment.date,
     payments: SEED_PAYMENTS.slice(),
+    currentMRR: 6.60,
     seedVersion: SEED_VERSION,
     needsImport: false
   };
@@ -362,6 +375,10 @@ async function syncFromServer(){
     syncStatus.error = null;
     syncStatus.lastSync = new Date();
     absorbServerVersion(data);
+
+    if(data.settings && Number.isFinite(Number(data.settings.currentMRR))){
+      state.currentMRR=Number(data.settings.currentMRR);
+    }
 
     if(data.payments.length === 0){
       state.needsImport = true; // ระบบกลางยังไม่มีข้อมูล -> เสนอให้นำเข้าประวัติเดิม
@@ -1313,16 +1330,33 @@ function buildChartCard(){
 
 function buildCategoryNav(){
   const pages=[
-    {id:'overview',label:'ภาพรวม'},
-    {id:'plan',label:'แผนปลดหนี้'},
-    {id:'history',label:'ประวัติ'},
-    {id:'settings',label:'ตั้งค่า'}
+    {id:'overview',label:'ภาพรวม',icon:'<path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'},
+    {id:'plan',label:'แผนปลดหนี้',icon:'<path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/>'},
+    {id:'history',label:'ประวัติ',icon:'<path d="M4 5h16v15H4zM8 3v4m8-4v4M4 10h16"/>'},
+    {id:'settings',label:'ตั้งค่า',icon:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"/>'}
   ];
-  return `<nav class="category-nav" aria-label="หมวดหมู่หลัก">${pages.map(page=>`<button class="category-tab ${uiState.page===page.id?'active':''}" aria-current="${uiState.page===page.id?'page':'false'}" onclick="setAppPage('${page.id}')">${page.label}</button>`).join('')}</nav>`;
+  return `<nav class="category-nav" aria-label="หมวดหมู่หลัก">${pages.map(page=>`<button class="category-tab ${uiState.page===page.id?'active':''}" aria-current="${uiState.page===page.id?'page':'false'}" onclick="setAppPage('${page.id}')"><svg viewBox="0 0 24 24" aria-hidden="true">${page.icon}</svg><span>${page.label}</span></button>`).join('')}</nav>`;
 }
 
 function buildPageHeading(title,description){
   return `<header class="page-heading"><h2>${title}</h2><p>${description}</p></header>`;
+}
+
+function buildReminderBanner(avgPayment){
+  const reminder=LoanAnalytics.evaluateMonthlyReminder(state.payments,todayStr(),avgPayment,reminderPrefs);
+  if(!reminder.alerts.length) return '';
+  return `<section class="reminder-banner" aria-label="การแจ้งเตือน">${reminder.alerts.map(alert=>`<div class="reminder-item ${alert.level}"><div><strong>${alert.title}</strong><span>${alert.message}</span></div><button onclick="setAppPage('settings')">ตั้งค่า</button></div>`).join('')}</section>`;
+}
+
+function scenarioRate(offset){ return Math.max(rateOnDate(todayStr())+offset,0); }
+
+function buildScenarioComparison(balance,avgPayment){
+  const scenarios=LoanAnalytics.buildPayoffScenarios(balance,avgPayment,todayStr(),rateOnDate);
+  const finite=scenarios.filter(item=>item.finite);
+  const minMonths=finite.length?Math.min(...finite.map(item=>item.months)):0;
+  const maxMonths=finite.length?Math.max(...finite.map(item=>item.months)):0;
+  const rows=scenarios.map(item=>`<div class="scenario-row ${item.id==='base'?'base':''}"><div><span class="scenario-dot ${item.id}"></span><strong>${item.label}</strong><small>${(scenarioRate(item.offset)*100).toFixed(2)}% ต่อปี ณ วันนี้</small></div><div><strong>${item.finite?thaiDate(item.payoffDate):'ยังไม่หมดหนี้'}</strong><small>${item.finite?`${formatMonthDuration(item.months)} · ดอกเบี้ย ${fmt(item.totalInterest,0)} บาท`:'ยอดผ่อนต่ำกว่าดอกเบี้ย'}</small></div></div>`).join('');
+  return `<section class="scenario-card" aria-label="ประมาณการสามสถานการณ์"><div class="scenario-head"><div><span>ช่วงประมาณการ</span><h3>วันหมดหนี้ 3 สถานการณ์</h3></div><span class="scenario-badge">ไม่ใช่ค่าตายตัว</span></div><div class="scenario-rows">${rows}</div>${finite.length?`<div class="scenario-range"><span>เร็วสุด ${formatMonthDuration(minMonths)}</span><div><i></i><b></b><i></i></div><span>ช้าสุด ${formatMonthDuration(maxMonths)}</span></div>`:''}<p>คำนวณจากยอดผ่อนเฉลี่ย ${fmt(avgPayment,0)} บาท/เดือน โดยจำลองอัตราต่ำกว่าฐาน 0.50% และสูงกว่าฐาน 1.30%</p></section>`;
 }
 
 function thaiMonthYear(monthKey){
@@ -1451,6 +1485,7 @@ async function loadReceiptAttachmentMeta(){
   try{
     const items=await ReceiptStore.listMeta();
     receiptAttachmentMeta=new Map(items.map(item=>[String(item.paymentId),item]));
+    receiptBackupStats={count:items.length,totalBytes:items.reduce((sum,item)=>sum+Number(item.size||0),0)};
   }catch(error){
     console.warn('Receipt metadata unavailable:',error);
   }
@@ -1579,6 +1614,110 @@ function buildPaymentForm(){
   return `<div class="section-title">บันทึกการผ่อนชำระ</div><details class="form-card payment-form-details"><summary><div><strong>+  เพิ่มรายการชำระ</strong><span>กรอกยอดเอง หรืออ่านจาก PDF / รูปใบเสร็จ</span></div><small>แตะเพื่อเปิด</small></summary><div class="payment-form-body"><div class="form-row"><label>วันที่ชำระ</label><input type="date" id="pay-date" value="${todayStr()}"><div class="date-thai" id="date-thai"></div></div><div class="form-row"><label>จำนวนเงินที่ชำระ (บาท)</label><input type="number" id="pay-amount" placeholder="เช่น 19600" inputmode="decimal" value=""></div><div class="preview-box" id="preview-box"></div><div class="btn-row payment-submit-row"><button class="btn btn-primary" onclick="submitPayment()">บันทึกการผ่อน</button></div><div class="receipt-upload-row"><div class="ru-label">หรือเลือกใบเสร็จ SCB แบบ PDF หรือรูปถ่าย แอพจะอ่านข้อมูลในเครื่องนี้โดยไม่อัปโหลดไฟล์</div><button class="btn-upload" id="receipt-upload-btn" onclick="document.getElementById('receipt-file-input').click()">🧾 PDF / รูปภาพ</button><input type="file" id="receipt-file-input" accept="application/pdf,image/*" style="display:none" onchange="handleReceiptFile(event)"></div></div></details>`;
 }
 
+function saveReminderPrefs(){
+  try{ localStorage.setItem(REMINDER_PREFS_KEY,JSON.stringify(reminderPrefs)); }catch(error){}
+}
+
+async function updateReminderSetting(key,value){
+  if(!['dueEnabled','goalEnabled','dueDay'].includes(key)) return;
+  if(key==='dueDay') reminderPrefs.dueDay=Math.max(1,Math.min(31,Number(value)||26));
+  else reminderPrefs[key]=!!value;
+  if(key!=='dueDay'&&value&&'Notification' in window&&Notification.permission==='default'){
+    try{ await Notification.requestPermission(); }catch(error){}
+  }
+  saveReminderPrefs();
+  render();
+}
+
+async function saveMRRSettings(){
+  const input=document.getElementById('settings-mrr');
+  const value=Number(input&&input.value);
+  if(!Number.isFinite(value)||value<0||value>20){ showToast('กรุณากรอก MRR ระหว่าง 0.00% ถึง 20.00%'); return; }
+  const pass=getSavedPass();
+  if(isConfigured()&&pass){
+    showToast('กำลังบันทึก MRR ให้ทุกเครื่อง...');
+    try{
+      const response=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(versionedRequest({action:'saveSettings',pass,settings:{currentMRR:value}}))});
+      const data=await response.json();
+      if(!data.ok){ if(await handleServerConflict(data)) return; showToast(data.error||'บันทึก MRR ไม่สำเร็จ'); return; }
+      absorbServerVersion(data);
+      state.currentMRR=Number(data.settings.currentMRR);
+    }catch(error){ showToast('ไม่มีอินเทอร์เน็ต จึงยังบันทึก MRR ให้ทุกเครื่องไม่ได้'); return; }
+  }else state.currentMRR=value;
+  saveState(); render(); showToast('บันทึกสมมติฐาน MRR แล้ว ✓');
+}
+
+let pendingEncryptedReceiptFile=null;
+let receiptBackupMode='export';
+function openReceiptBackupDialog(mode){
+  receiptBackupMode=mode;
+  pendingEncryptedReceiptFile=null;
+  const overlay=document.getElementById('backup-password-overlay');
+  document.getElementById('backup-password-title').textContent=mode==='export'?'สำรองใบเสร็จแบบเข้ารหัส':'กู้คืนใบเสร็จแบบเข้ารหัส';
+  document.getElementById('backup-password-description').textContent=mode==='export'?'ตั้งรหัสสำหรับเปิดไฟล์สำรอง รหัสนี้ไม่ถูกส่งออกจากเครื่อง':'เลือกรหัสเดียวกับตอนสร้างไฟล์สำรอง';
+  document.getElementById('backup-password-confirm-row').hidden=mode!=='export';
+  document.getElementById('backup-password').value='';
+  document.getElementById('backup-password-confirm').value='';
+  document.getElementById('backup-password-error').textContent='';
+  document.getElementById('backup-password-submit').onclick=runReceiptBackupAction;
+  overlay.classList.add('show');
+  setTimeout(()=>document.getElementById('backup-password').focus(),50);
+}
+function closeReceiptBackupDialog(){ document.getElementById('backup-password-overlay').classList.remove('show'); pendingEncryptedReceiptFile=null; }
+function startEncryptedReceiptImport(){ document.getElementById('receipt-backup-import-input').click(); }
+function selectEncryptedReceiptBackup(event){
+  const file=event.target.files&&event.target.files[0]; event.target.value='';
+  if(!file) return;
+  pendingEncryptedReceiptFile=file; openReceiptBackupDialog('import'); pendingEncryptedReceiptFile=file;
+}
+async function runReceiptBackupAction(){
+  const password=document.getElementById('backup-password').value;
+  const errorBox=document.getElementById('backup-password-error');
+  if(password.length<8){ errorBox.textContent='กรุณาใช้รหัสอย่างน้อย 8 ตัวอักษร'; return; }
+  if(receiptBackupMode==='export'&&password!==document.getElementById('backup-password-confirm').value){ errorBox.textContent='รหัสทั้งสองช่องไม่ตรงกัน'; return; }
+  const button=document.getElementById('backup-password-submit'); button.disabled=true; button.textContent='กำลังเข้ารหัส...';
+  try{
+    if(receiptBackupMode==='export'){
+      const records=await ReceiptStore.listRecords();
+      if(!records.length) throw new Error('ยังไม่มีใบเสร็จในเครื่องนี้ให้สำรอง');
+      const receipts=[];
+      for(const record of records){ receipts.push({paymentId:record.paymentId,name:record.name,type:record.type,size:record.size,createdAt:record.createdAt,data:EncryptedBackup.toBase64(new Uint8Array(await record.blob.arrayBuffer()))}); }
+      const encrypted=await EncryptedBackup.encryptJson({version:1,createdAt:new Date().toISOString(),receipts},password);
+      downloadBlob(JSON.stringify(encrypted),'application/json',`loan-receipts-${todayStr()}.loanreceipts`);
+      showToast(`สำรองใบเสร็จ ${records.length} ไฟล์แล้ว ✓`);
+    }else{
+      if(!pendingEncryptedReceiptFile) throw new Error('กรุณาเลือกไฟล์สำรอง');
+      const payload=await EncryptedBackup.decryptJson(await pendingEncryptedReceiptFile.text(),password);
+      const records=(payload.receipts||[]).map(item=>({paymentId:String(item.paymentId),name:item.name,type:item.type,size:Number(item.size)||0,createdAt:item.createdAt,blob:new Blob([EncryptedBackup.fromBase64(item.data)],{type:item.type})}));
+      await ReceiptStore.saveMany(records); await loadReceiptAttachmentMeta();
+      showToast(`กู้คืนใบเสร็จ ${records.length} ไฟล์แล้ว ✓`);
+    }
+    closeReceiptBackupDialog(); render();
+  }catch(error){ errorBox.textContent=error.message||'จัดการไฟล์สำรองไม่สำเร็จ'; }
+  finally{ button.disabled=false; button.textContent='ดำเนินการ'; }
+}
+
+function openReconciliation(){ uiState.historyMode='reconcile'; saveUiPrefs(); reconciliationResult=null; render(); }
+function closeReconciliation(){ uiState.historyMode='list'; saveUiPrefs(); render(); }
+function runReconciliation(){
+  const date=document.getElementById('reconcile-date').value;
+  const bankBalance=Number(document.getElementById('reconcile-balance').value);
+  if(!date||!Number.isFinite(bankBalance)||bankBalance<0){ showToast('กรุณากรอกวันที่และยอดเงินต้นจากธนาคาร'); return; }
+  reconciliationResult=LoanAnalytics.reconcileBalance(state.payments,date,bankBalance); render();
+}
+function saveReconciliationReference(){
+  if(!reconciliationResult) return;
+  let history=[]; try{ history=JSON.parse(localStorage.getItem(RECONCILIATION_KEY)||'[]'); }catch(error){}
+  history.unshift(Object.assign({createdAt:new Date().toISOString()},reconciliationResult));
+  try{ localStorage.setItem(RECONCILIATION_KEY,JSON.stringify(history.slice(0,20))); }catch(error){}
+  showToast('เก็บผลกระทบยอดไว้ตรวจภายหลังแล้ว ✓');
+}
+function buildReconciliationPage(){
+  const result=reconciliationResult;
+  const resultHtml=!result?'':result.appBalance==null?`<div class="reconcile-result warning"><strong>ยังไม่มียอดในแอป ณ วันที่นี้</strong><span>เลือกวันที่หลังรายการชำระครั้งแรก</span></div>`:result.matches?`<div class="reconcile-result success"><strong>ยอดตรงกัน ✓</strong><span>ยอดต่างกันเพียง ${fmt(Math.abs(result.difference),2)} บาท · อ้างอิงรายการ ${thaiDate(result.referenceDate)}</span></div>`:`<div class="reconcile-result danger"><strong>พบส่วนต่าง ${fmt(Math.abs(result.difference),2)} บาท</strong><span>${result.difference>0?'ยอดธนาคารสูงกว่า':'ยอดธนาคารต่ำกว่า'}แอป · อ้างอิงรายการล่าสุด ${thaiDate(result.referenceDate)}</span><div class="reconcile-actions"><button class="btn btn-primary" onclick="saveReconciliationReference()">ใช้ยอดธนาคารเป็นจุดอ้างอิง</button><button class="btn btn-secondary" onclick="saveReconciliationReference()">เก็บไว้ตรวจภายหลัง</button></div></div>`;
+  return `${buildPageHeading('กระทบยอดกับธนาคาร','เปรียบเทียบเงินต้นคงเหลือในแอปกับใบแจ้งยอด SCB')}<button class="back-link" onclick="closeReconciliation()">← กลับประวัติ</button><section class="reconcile-card"><div class="reconcile-form"><label><span>วันที่ในใบแจ้งยอด</span><input id="reconcile-date" type="date" value="${result?result.date:todayStr()}"></label><label><span>เงินต้นคงเหลือจาก SCB (บาท)</span><input id="reconcile-balance" type="number" inputmode="decimal" placeholder="เช่น 1,768,117.00" value="${result?result.bankBalance:''}"></label><button class="btn btn-primary" onclick="runReconciliation()">ตรวจสอบยอด</button></div>${resultHtml}<p class="reconcile-note">การบันทึกจุดอ้างอิงไม่แก้ประวัติการผ่อนหรือยอดในระบบกลางโดยอัตโนมัติ</p></section>`;
+}
+
 function buildSettingsPage(balance,avgPayment,lifetimeInterestTotal){
   const quality=analyzeDataQuality();
   const latestBackup=getBackupHistory()[0];
@@ -1590,8 +1729,11 @@ function buildSettingsPage(balance,avgPayment,lifetimeInterestTotal){
     {id:'large',sample:'Aa',label:'ใหญ่'},
     {id:'xlarge',sample:'Aa',label:'ใหญ่มาก'}
   ];
-  return `${buildPageHeading('ตั้งค่าแอป','ปรับการแสดงผล การซิงค์ และจัดการสำเนาข้อมูล')}
+  return `${buildPageHeading('ตั้งค่าแอป','ปรับดอกเบี้ย การแจ้งเตือน การแสดงผล และข้อมูลสำรอง')}
     <section class="settings-card font-settings" aria-labelledby="font-size-title"><div class="settings-title" id="font-size-title">ขนาดตัวอักษร</div><p class="settings-description">ปรับขนาดตัวอักษรทุกหน้าของแอป</p><div class="font-size-options" role="group" aria-label="เลือกขนาดตัวอักษร">${fontOptions.map(option=>`<button class="font-size-option ${uiState.fontSize===option.id?'active':''}" aria-pressed="${uiState.fontSize===option.id}" onclick="setAppFontSize('${option.id}')"><span>${option.sample}</span><strong>${option.label}</strong></button>`).join('')}</div><div class="font-preview"><span>ตัวอย่างข้อความ</span><div><small>ยอดหนี้คงเหลือ</small><strong>1,768,117 บาท</strong></div><div><small>ดอกเบี้ยสะสม</small><strong>${fmt(lifetimeInterestTotal,0)} บาท</strong></div></div></section>
+    <section class="settings-card rate-settings" aria-labelledby="rate-title"><div class="settings-title" id="rate-title">อัตราดอกเบี้ยและ MRR</div><p class="settings-description">ปรับสมมติฐานหลังหมดช่วงดอกเบี้ยคงที่ให้ตรงกับประกาศธนาคารล่าสุด</p><div class="rate-status-grid"><div><span>อัตราปัจจุบัน</span><strong>${(rateOnDate(todayStr())*100).toFixed(2)}%</strong><small>คงที่ถึง 8 มี.ค. 2572</small></div><label><span>MRR ที่ใช้ประมาณการ</span><div class="rate-input"><input id="settings-mrr" type="number" inputmode="decimal" min="0" max="20" step="0.01" value="${Number(state.currentMRR||6.6).toFixed(2)}"><b>%</b></div></label></div><div class="rate-formula"><span>ตั้งแต่ 9 มี.ค. 2572</span><strong>MRR ${Number(state.currentMRR||6.6).toFixed(2)}% − 1.50% = ${Math.max(Number(state.currentMRR||6.6)-1.5,0).toFixed(2)}%</strong></div><button class="btn btn-primary rate-save" onclick="saveMRRSettings()">บันทึก MRR ให้ทุกเครื่อง</button><p class="settings-footnote">เป็นสมมติฐานเพื่อประมาณการเท่านั้น อัตราจริงขึ้นกับประกาศ SCB ในอนาคต</p></section>
+    <section class="settings-card reminder-settings" aria-labelledby="reminder-title"><div class="settings-title" id="reminder-title">การแจ้งเตือนรายเดือน</div><p class="settings-description">เตือนเมื่อเปิดแอปบนอุปกรณ์นี้ และใช้การแจ้งเตือนของเครื่องเมื่อได้รับอนุญาต</p><div class="setting-toggle-row"><div><strong>เตือนก่อนวันผ่อน</strong><span>แจ้งล่วงหน้า 3 วัน</span></div><label class="switch"><input type="checkbox" ${reminderPrefs.dueEnabled?'checked':''} onchange="updateReminderSetting('dueEnabled',this.checked)"><i></i></label></div><div class="setting-toggle-row"><div><strong>เตือนเมื่อยอดยังต่ำกว่าเป้าหมาย</strong><span>เทียบค่าเฉลี่ย 12 เดือนล่าสุด</span></div><label class="switch"><input type="checkbox" ${reminderPrefs.goalEnabled?'checked':''} onchange="updateReminderSetting('goalEnabled',this.checked)"><i></i></label></div><label class="due-day-field"><span>วันผ่อนประจำเดือน</span><input type="number" min="1" max="31" value="${reminderPrefs.dueDay}" onchange="updateReminderSetting('dueDay',this.value)"><b>ของทุกเดือน</b></label></section>
+    <section class="settings-card receipt-backup-card" aria-labelledby="receipt-backup-title"><div class="settings-title" id="receipt-backup-title">สำรองใบเสร็จแบบเข้ารหัส</div><p class="settings-description">ป้องกันไฟล์หายเมื่อเปลี่ยนหรือล้างเครื่อง โดยสร้างไฟล์ที่เปิดได้ด้วยรหัสของคุณเท่านั้น</p><div class="receipt-backup-summary"><div><strong>${receiptBackupStats.count}</strong><span>ไฟล์ใบเสร็จ</span></div><div><strong>${formatFileSize(receiptBackupStats.totalBytes)}</strong><span>ขนาดรวมในเครื่องนี้</span></div></div><div class="receipt-backup-actions"><button class="btn btn-primary" onclick="openReceiptBackupDialog('export')" ${receiptBackupStats.count?'':'disabled'}>ส่งออกไฟล์เข้ารหัส</button><button class="btn btn-secondary" onclick="startEncryptedReceiptImport()">กู้คืนจากไฟล์</button></div><p class="settings-footnote">ระบบไม่เก็บหรือกู้รหัสไฟล์สำรองให้ ควรจดรหัสไว้ในที่ปลอดภัย</p></section>
     <section class="settings-card settings-sync"><div><div class="settings-title">การซิงค์ข้อมูล</div><p class="settings-description">${syncStatus.online?'เชื่อมต่อแล้ว · ข้อมูลครอบครัวเป็นชุดเดียวกัน':'ออฟไลน์ · แสดงข้อมูลล่าสุดที่มีในเครื่อง'}</p></div><button class="settings-action" onclick="manualSync()">↻ ซิงค์ข้อมูล</button></section>
     <section class="settings-card"><div class="settings-title">ข้อมูลและรายงาน</div><div class="interest-summary"><div><strong>${projection.finite?fmt(projection.totalInterest,0):'—'}</strong><span>ดอกเบี้ยที่คาดว่าจะจ่ายในอนาคต</span></div><div><strong>${projection.finite?fmt(lifetimeInterestTotal+projection.totalInterest,0):'—'}</strong><span>ดอกเบี้ยตลอดสัญญาโดยประมาณ</span></div></div><div class="quality-box ${quality.issues.length?'':'ok'}"><div class="quality-title"><span>${quality.issues.length?'พบข้อมูลที่ควรตรวจสอบ':'ข้อมูลต่อเนื่องดี'}</span><strong>${quality.issues.length?quality.issues.length+' จุด':'ผ่าน'}</strong></div>${quality.issues.length?`<ul class="quality-list">${qualityItems}${extraIssues?`<li>และอีก ${extraIssues} จุด</li>`:''}</ul>`:`<div class="planner-note settings-quality-note">ไม่พบรายการซ้ำหรือยอดคงเหลือขาดช่วง · มีรายการตัดเงินต้นเพิ่ม ${quality.zeroInterestCount} รายการ</div>`}</div><div class="utility-grid"><button class="utility-btn" onclick="exportPDFReport()">รายงาน PDF<span>เปิดหน้าพิมพ์และบันทึก PDF</span></button><button class="utility-btn" onclick="exportPaymentsCSV()">ส่งออก CSV<span>ประวัติทุกรายการ</span></button><button class="utility-btn" onclick="exportBackupJSON()">สำรองข้อมูล<span>ไฟล์ JSON สำหรับกู้คืน</span></button><button class="utility-btn" onclick="document.getElementById('backup-restore-input').click()">กู้คืนข้อมูล<span>กู้คืนในเครื่องอย่างปลอดภัย</span></button><button class="utility-btn utility-wide" onclick="restoreLatestSnapshot()">ย้อนกลับการแก้ไขล่าสุด<span>${latestBackup?`${latestBackup.label} · ${new Date(latestBackup.createdAt).toLocaleString('th-TH')}`:'ยังไม่มีประวัติการแก้ไข'}</span></button></div><input id="backup-restore-input" type="file" accept="application/json,.json" style="display:none" onchange="handleBackupRestore(event)"><div class="backup-meta">ไฟล์สำรองเก็บข้อมูลหนี้และประวัติการผ่อนทั้งหมด · การกู้คืนไม่เขียนทับระบบกลางอัตโนมัติ</div></section>
     <button class="logout-card" onclick="logoutFamily()"><strong>ออกจากระบบ</strong><span>ต้องกรอกรหัสครอบครัวใหม่เมื่อกลับมาใช้งาน</span></button>`;
@@ -1671,6 +1813,7 @@ function render(){
     ${buildCategoryNav()}
     <main class="page-panel" data-page="overview" ${uiState.page==='overview'?'':'hidden'}>
     ${buildPageHeading('ภาพรวมสินเชื่อ','ยอดคงเหลือ ความคืบหน้า และประมาณการวันหมดหนี้')}
+    ${buildReminderBanner(avgPayment)}
     <div class="hero-card">
       <div class="hero-label">💰 ยอดหนี้คงเหลือ (เรียลไทม์)</div>
       <div class="hero-balance">${fmt(liveBalance, 2)}<span class="unit">บาท</span></div>
@@ -1748,13 +1891,16 @@ function render(){
 
     <main class="page-panel" data-page="plan" ${uiState.page==='plan'?'':'hidden'}>
     ${buildPageHeading('แผนปลดหนี้','ทดลองยอดผ่อน ตั้งเป้าหมาย และดูแนวโน้มเงินต้น')}
+    ${buildScenarioComparison(balance,avgPayment)}
     ${buildPlannerHub(balance, avgPayment, avgBasisMonths, lifetimeInterestTotal)}
 
     ${buildChartCard()}
 
     </main>
     <main class="page-panel" data-page="history" ${uiState.page==='history'?'':'hidden'}>
-    ${buildPageHeading('ประวัติและการชำระ','ตรวจดอกเบี้ยรายปี เพิ่มรายการ และดูประวัติย้อนหลัง')}
+    ${uiState.historyMode==='reconcile'?buildReconciliationPage():`${buildPageHeading('ประวัติและการชำระ','ตรวจดอกเบี้ยรายปี เพิ่มรายการ และดูประวัติย้อนหลัง')}
+
+    <button class="reconcile-entry" onclick="openReconciliation()"><span><strong>กระทบยอดกับธนาคาร</strong><small>เทียบยอดเงินต้นในแอปกับใบแจ้งยอด SCB</small></span><b>ตรวจสอบยอด →</b></button>
 
     ${buildAnnualInterestCard(annualInterestSummary,lifetimeInterestTotal,lifetimeInterestAsOf)}
 
@@ -1762,7 +1908,7 @@ function render(){
 
     <div class="section-title">ประวัติการผ่อนชำระ</div>
     ${buildHistoryFilterCard(state.payments.length,historyEntries.length)}
-    <div class="history-list" id="history-results-root">${historyHtml}</div>
+    <div class="history-list" id="history-results-root">${historyHtml}</div>`}
     </main>
 
     <main class="page-panel" data-page="settings" ${uiState.page==='settings'?'':'hidden'}>
@@ -1801,10 +1947,12 @@ function render(){
     box.innerHTML = `วันที่ <b>${thaiDate(pdate)}</b> · ช่วงเวลา ${days} วัน · ดอกเบี้ยประมาณ <b>${fmt(interest,2)}</b> บาท · เงินต้นที่ตัด <b>${fmt(principalPaid,2)}</b> บาท<br>ยอดคงเหลือใหม่โดยประมาณ: <b>${fmt(newBalance,2)} บาท</b>`;
     box.classList.add('show');
   }
-  amtInput.addEventListener('input', updatePreview);
-  dateInput.addEventListener('input', () => { updateDateThai(); updatePreview(); });
-  updateDateThai();
-  updatePreview();
+  if(amtInput&&dateInput){
+    amtInput.addEventListener('input', updatePreview);
+    dateInput.addEventListener('input', () => { updateDateThai(); updatePreview(); });
+    updateDateThai();
+    updatePreview();
+  }
 }
 
 // ============================================================
@@ -1813,6 +1961,7 @@ function render(){
 // ============================================================
 let pendingReceiptData = null;
 const TESSERACT_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+const PDFJS_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 
 function loadScriptOnce(src, globalName){
   if(globalName && window[globalName]) return Promise.resolve(window[globalName]);
@@ -1931,6 +2080,8 @@ async function handleReceiptFile(event){
     if(isImage){
       rawText=await readReceiptImage(file,btn);
     }else{
+      setReceiptReadProgress(btn,'กำลังโหลดตัวอ่าน PDF');
+      await loadScriptOnce(PDFJS_SCRIPT_URL,'pdfjsLib');
       if(typeof pdfjsLib === 'undefined') throw new Error('โหลดตัวอ่าน PDF ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       const buf = await file.arrayBuffer();
@@ -2281,7 +2432,18 @@ async function autoResyncIfNeeded(){
   lastAutoSyncAt = now;
   const ok = await syncFromServer();
   render();
+  maybeShowDeviceReminder();
   if(ok) showToast('อัปเดตข้อมูลล่าสุดแล้ว ✓');
+}
+
+function maybeShowDeviceReminder(){
+  if(!('Notification' in window)||Notification.permission!=='granted'||!state) return;
+  const stats=getMonthlyPaymentStats();
+  const reminder=LoanAnalytics.evaluateMonthlyReminder(state.payments,todayStr(),stats.average,reminderPrefs);
+  if(!reminder.alerts.length||reminderPrefs.lastNotified===todayStr()) return;
+  const alert=reminder.alerts[0];
+  try{ new Notification(alert.title,{body:alert.message,icon:'./icon-192.png',tag:`loan-reminder-${todayStr()}`}); }catch(error){}
+  reminderPrefs.lastNotified=todayStr(); saveReminderPrefs();
 }
 
 function setupAutoResync(){
@@ -2301,7 +2463,8 @@ function setupAutoResync(){
   await loadState();
   await loadReceiptAttachmentMeta();
   render();
-  registerServiceWorker();
+  maybeShowDeviceReminder();
+  if(!IS_LOCAL_QA) registerServiceWorker();
   setupPullToRefresh();
   setupAutoResync();
 

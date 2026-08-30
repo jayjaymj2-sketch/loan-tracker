@@ -11,6 +11,10 @@
 
 const SHEET_NAME = 'Payments';
 const VERSION_KEY = 'DATA_VERSION';
+const SETTINGS_KEY = 'LOAN_SETTINGS_JSON';
+const DEFAULT_MRR = 6.60;
+const MONEY_TOLERANCE = 0.05;
+const BALANCE_TOLERANCE = 1.00;
 const HEADERS = [
   'id', 'date', 'amount', 'interest', 'principalPaid', 'balanceAfter',
   'payer', 'locked', 'createdAt', 'updatedAt', 'source'
@@ -24,7 +28,7 @@ function doGet(e){
   const lock = LockService.getScriptLock();
   try{
     lock.waitLock(10000);
-    return json_({ ok:true, payments:readPayments_(), version:getVersion_() });
+    return json_({ ok:true, payments:readPayments_(), settings:getLoanSettings_(), version:getVersion_() });
   }catch(err){
     return json_({ ok:false, error:'ระบบกำลังบันทึกข้อมูล กรุณาลองใหม่' });
   }finally{
@@ -62,6 +66,7 @@ function doPost(e){
     if(body.action === 'add') result = addPayment_(body.payment);
     else if(body.action === 'delete') result = deletePayment_(body.id);
     else if(body.action === 'bulkImport') result = bulkImport_(body.payments);
+    else if(body.action === 'saveSettings') result = saveLoanSettings_(body.settings);
     else return json_({ ok:false, error:'ไม่รู้จักคำสั่ง' });
 
     if(!result.ok) return json_(result);
@@ -83,6 +88,8 @@ function addPayment_(raw){
   if(existing.some(function(item){ return item.id === payment.id; })){
     return { ok:false, error:'รายการนี้มีอยู่แล้ว' };
   }
+  const validation = validatePaymentAgainstLedger_(payment, existing);
+  if(!validation.ok) return validation;
   const now = new Date().toISOString();
   payment.createdAt = payment.createdAt || now;
   payment.updatedAt = now;
@@ -92,6 +99,11 @@ function addPayment_(raw){
 
 function deletePayment_(id){
   if(!id) return { ok:false, error:'ไม่พบรหัสรายการ' };
+  const existing = readPayments_();
+  const targetIndex = existing.findIndex(function(item){ return String(item.id) === String(id); });
+  if(targetIndex < 0) return { ok:false, error:'ไม่พบรายการที่ต้องการลบ' };
+  if(targetIndex !== existing.length - 1) return { ok:false, error:'ลบได้เฉพาะรายการล่าสุด เพื่อรักษาความต่อเนื่องของยอดคงเหลือ' };
+  if(existing[targetIndex].locked) return { ok:false, error:'รายการจากใบเสร็จถูกล็อกไว้และไม่สามารถลบได้' };
   const sheet = getSheet_();
   const values = sheet.getDataRange().getValues();
   const idIndex = HEADERS.indexOf('id');
@@ -116,8 +128,75 @@ function bulkImport_(payments){
     payment.updatedAt = now;
     return payment;
   });
+  const ledgerValidation = validateLedger_(cleaned);
+  if(!ledgerValidation.ok) return ledgerValidation;
   sheet.getRange(2, 1, cleaned.length, HEADERS.length).setValues(cleaned.map(paymentToRow_));
   return { ok:true, count:cleaned.length };
+}
+
+function validatePaymentAgainstLedger_(payment, existing){
+  const formulaError = Math.abs(payment.amount - payment.principalPaid - payment.interest);
+  if(payment.amount <= 0) return { ok:false, code:'INVALID_PAYMENT', error:'ยอดชำระต้องมากกว่า 0 บาท' };
+  if(formulaError > MONEY_TOLERANCE){
+    return { ok:false, code:'PAYMENT_SUM_MISMATCH', error:'ยอดชำระไม่เท่ากับเงินต้น + ดอกเบี้ย (ต่างกัน ' + round2_(formulaError) + ' บาท)' };
+  }
+  const ordered = (existing || []).slice();
+  let insertAt = ordered.length;
+  for(let i = 0; i < ordered.length; i++){
+    if(ordered[i].date > payment.date){ insertAt = i; break; }
+  }
+  const previous = insertAt > 0 ? ordered[insertAt - 1] : null;
+  const next = insertAt < ordered.length ? ordered[insertAt] : null;
+  if(previous){
+    const expectedBalance = round2_(previous.balanceAfter - payment.principalPaid);
+    const difference = Math.abs(expectedBalance - payment.balanceAfter);
+    if(difference > BALANCE_TOLERANCE){
+      return { ok:false, code:'BALANCE_DISCONTINUITY', error:'ยอดคงเหลือไม่ต่อจากรายการก่อนหน้า ควรเป็นประมาณ ' + expectedBalance.toFixed(2) + ' บาท (ต่างกัน ' + round2_(difference) + ' บาท)' };
+    }
+  }
+  if(next){
+    const expectedNextBalance = round2_(payment.balanceAfter - next.principalPaid);
+    const difference = Math.abs(expectedNextBalance - next.balanceAfter);
+    if(difference > BALANCE_TOLERANCE){
+      return { ok:false, code:'NEXT_BALANCE_DISCONTINUITY', error:'รายการนี้ทำให้ยอดของรายการถัดไปไม่ต่อเนื่อง (ต่างกัน ' + round2_(difference) + ' บาท)' };
+    }
+  }
+  return { ok:true };
+}
+
+function validateLedger_(payments){
+  const ordered = (payments || []).slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+  for(let i = 0; i < ordered.length; i++){
+    const formulaError = Math.abs(ordered[i].amount - ordered[i].principalPaid - ordered[i].interest);
+    if(ordered[i].amount <= 0 || formulaError > MONEY_TOLERANCE){
+      return { ok:false, code:'IMPORT_VALIDATION_FAILED', error:'รายการนำเข้าลำดับที่ ' + (i + 1) + ' มียอดชำระไม่เท่ากับเงินต้น + ดอกเบี้ย' };
+    }
+    if(i > 0){
+      const expected = round2_(ordered[i - 1].balanceAfter - ordered[i].principalPaid);
+      if(Math.abs(expected - ordered[i].balanceAfter) > BALANCE_TOLERANCE){
+        return { ok:false, code:'IMPORT_BALANCE_DISCONTINUITY', error:'รายการนำเข้าลำดับที่ ' + (i + 1) + ' มียอดคงเหลือไม่ต่อเนื่อง' };
+      }
+    }
+  }
+  return { ok:true };
+}
+
+function getLoanSettings_(){
+  const raw = PropertiesService.getScriptProperties().getProperty(SETTINGS_KEY);
+  let settings = {};
+  try{ settings = raw ? JSON.parse(raw) : {}; }catch(err){ settings = {}; }
+  const currentMRR = Number(settings.currentMRR);
+  return { currentMRR:Number.isFinite(currentMRR) ? currentMRR : DEFAULT_MRR };
+}
+
+function saveLoanSettings_(raw){
+  const currentMRR = Number(raw && raw.currentMRR);
+  if(!Number.isFinite(currentMRR) || currentMRR < 0 || currentMRR > 20){
+    return { ok:false, code:'INVALID_MRR', error:'MRR ต้องอยู่ระหว่าง 0.00% ถึง 20.00%' };
+  }
+  const settings = { currentMRR:round2_(currentMRR) };
+  PropertiesService.getScriptProperties().setProperty(SETTINGS_KEY, JSON.stringify(settings));
+  return { ok:true, settings:settings };
 }
 
 function sanitizePayment_(raw){

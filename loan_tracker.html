@@ -15,13 +15,12 @@
 <link rel="icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./styles.css?v=15">
-<!-- pdf.js: ใช้สำหรับอ่านข้อความจากไฟล์ PDF ใบเสร็จ (ทำงานในเบราว์เซอร์ ไม่ส่งไฟล์ขึ้นเซิร์ฟเวอร์ใดๆ) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<link rel="stylesheet" href="./styles.css?v=16">
 <script src="./js/receipt-parser.js"></script>
 <script src="./js/sync-version.js"></script>
-<script src="./js/loan-analytics.js?v=15"></script>
-<script src="./js/receipt-store.js?v=15"></script>
+<script src="./js/loan-analytics.js?v=16"></script>
+<script src="./js/receipt-store.js?v=16"></script>
+<script src="./js/encrypted-backup.js?v=16"></script>
 </head>
 <body>
 <div id="gate-root"></div>
@@ -110,6 +109,18 @@
   </div>
 </div>
 
-<script src="./js/app.js?v=15"></script>
+<div class="confirm-overlay" id="backup-password-overlay">
+  <div class="confirm-box backup-password-box">
+    <div class="rm-title" id="backup-password-title">สำรองใบเสร็จแบบเข้ารหัส</div>
+    <div class="rm-sub" id="backup-password-description">ตั้งรหัสสำหรับเปิดไฟล์สำรอง รหัสนี้ไม่ถูกส่งออกจากเครื่อง</div>
+    <div class="rm-field"><label>รหัสไฟล์สำรอง (อย่างน้อย 8 ตัว)</label><input type="password" id="backup-password" autocomplete="new-password"></div>
+    <div class="rm-field" id="backup-password-confirm-row"><label>ยืนยันรหัสอีกครั้ง</label><input type="password" id="backup-password-confirm" autocomplete="new-password"></div>
+    <div class="backup-password-error" id="backup-password-error"></div>
+    <div class="btn-row"><button class="btn btn-secondary" onclick="closeReceiptBackupDialog()">ยกเลิก</button><button class="btn btn-primary" id="backup-password-submit">ดำเนินการ</button></div>
+  </div>
+</div>
+<input id="receipt-backup-import-input" type="file" accept=".loanreceipts,application/json" hidden onchange="selectEncryptedReceiptBackup(event)">
+
+<script src="./js/app.js?v=16"></script>
 </body>
 </html>

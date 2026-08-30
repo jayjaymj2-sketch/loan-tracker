@@ -139,5 +139,65 @@
     return {months:remaining<=0.01?months:Infinity,totalInterest:remaining<=0.01?totalInterest:Infinity,remaining,finite:remaining<=0.01};
   }
 
-  return {orderPaymentEntries,buildMonthlySeries,getMonthlyPaymentStats,summarizeMonth,buildAnnualInterestSummary,compareInterestYTD,filterPaymentEntries,projectPayoffFixedRate};
+  function projectPayoffSchedule(balance,monthlyPayment,startDate,rateForDate,maxMonths){
+    let remaining=Math.max(0,num(balance));
+    const payment=Math.max(0,num(monthlyPayment));
+    const limit=Math.max(1,Number(maxMonths)||600);
+    const start=new Date(String(startDate).slice(0,10)+'T00:00:00');
+    let months=0,totalInterest=0;
+    if(remaining===0) return {months:0,totalInterest:0,remaining:0,finite:true,payoffDate:String(startDate).slice(0,10)};
+    if(payment===0) return {months:Infinity,totalInterest:Infinity,remaining,finite:false,payoffDate:''};
+    while(remaining>0.01&&months<limit){
+      months+=1;
+      const date=new Date(start.getFullYear(),start.getMonth()+months,Math.min(start.getDate(),28));
+      const dateText=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+      const annualRate=Math.max(0,num(typeof rateForDate==='function'?rateForDate(dateText):rateForDate));
+      const interest=remaining*annualRate/12;
+      const principal=payment-interest;
+      if(principal<=0) return {months:Infinity,totalInterest:Infinity,remaining,finite:false,payoffDate:''};
+      remaining=Math.max(remaining-Math.min(principal,remaining),0);
+      totalInterest+=interest;
+    }
+    const finite=remaining<=0.01;
+    const payoff=new Date(start.getFullYear(),start.getMonth()+(finite?months:0),Math.min(start.getDate(),28));
+    const payoffDate=finite?`${payoff.getFullYear()}-${String(payoff.getMonth()+1).padStart(2,'0')}-${String(payoff.getDate()).padStart(2,'0')}`:'';
+    return {months:finite?months:Infinity,totalInterest:finite?totalInterest:Infinity,remaining,finite,payoffDate};
+  }
+
+  function buildPayoffScenarios(balance,monthlyPayment,startDate,baseRateForDate){
+    const definitions=[
+      {id:'low',label:'ดอกเบี้ยต่ำ',offset:-0.005},
+      {id:'base',label:'ฐาน',offset:0},
+      {id:'high',label:'ดอกเบี้ยสูง',offset:0.013}
+    ];
+    return definitions.map(item=>Object.assign({},item,projectPayoffSchedule(balance,monthlyPayment,startDate,date=>Math.max(0,num(baseRateForDate(date))+item.offset),600)));
+  }
+
+  function evaluateMonthlyReminder(payments,referenceDate,goal,options){
+    const prefs=Object.assign({dueEnabled:true,dueDay:26,goalEnabled:true,leadDays:3},options||{});
+    const date=new Date(String(referenceDate).slice(0,10)+'T00:00:00');
+    const day=date.getDate();
+    const dueDay=Math.max(1,Math.min(31,Number(prefs.dueDay)||26));
+    const summary=summarizeMonth(payments,referenceDate,goal);
+    const alerts=[];
+    if(prefs.dueEnabled&&day>=Math.max(1,dueDay-(Number(prefs.leadDays)||3))&&day<=dueDay){
+      alerts.push({id:'due',level:'info',title:`ใกล้วันผ่อน วันที่ ${dueDay}`,message:`เหลือ ${Math.max(dueDay-day,0)} วันถึงวันผ่อนประจำเดือน`});
+    }
+    if(prefs.goalEnabled&&day>=dueDay&&!summary.goalMet){
+      alerts.push({id:'goal',level:'warning',title:'ยอดเดือนนี้ยังต่ำกว่าเป้าหมาย',message:`เหลืออีก ${Math.round(summary.remaining).toLocaleString('th-TH')} บาทถึงค่าเฉลี่ย 12 เดือน`});
+    }
+    return {alerts,summary,dueDay};
+  }
+
+  function reconcileBalance(payments,date,bankBalance){
+    const targetDate=String(date||'').slice(0,10);
+    const eligible=(Array.isArray(payments)?payments:[]).filter(payment=>String(payment.date||'')<=targetDate);
+    const reference=eligible.length?eligible[eligible.length-1]:null;
+    const appBalance=reference?num(reference.balanceAfter):null;
+    const bank=num(bankBalance);
+    const difference=appBalance==null?null:Math.round((bank-appBalance)*100)/100;
+    return {date:targetDate,bankBalance:bank,appBalance,difference,matches:difference!=null&&Math.abs(difference)<=1,referenceDate:reference?reference.date:''};
+  }
+
+  return {orderPaymentEntries,buildMonthlySeries,getMonthlyPaymentStats,summarizeMonth,buildAnnualInterestSummary,compareInterestYTD,filterPaymentEntries,projectPayoffFixedRate,projectPayoffSchedule,buildPayoffScenarios,evaluateMonthlyReminder,reconcileBalance};
 });

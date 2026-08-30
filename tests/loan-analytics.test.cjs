@@ -75,3 +75,26 @@ test('fixed-rate payoff rejects payments below monthly interest', () => {
   assert.ok(possible.months > 20 && possible.months < 24);
   assert.ok(possible.totalInterest > 0);
 });
+
+test('three payoff scenarios preserve low, base, high risk ordering', () => {
+  const scenarios = Analytics.buildPayoffScenarios(1800000,48000,'2026-08-30',()=>0.028);
+  assert.deepEqual(scenarios.map(item=>item.id),['low','base','high']);
+  assert.ok(scenarios[0].totalInterest < scenarios[1].totalInterest);
+  assert.ok(scenarios[1].totalInterest < scenarios[2].totalInterest);
+  assert.ok(scenarios[0].months <= scenarios[1].months);
+  assert.ok(scenarios[1].months <= scenarios[2].months);
+});
+
+test('monthly reminder warns near due date and when goal is missed', () => {
+  const nearDue=Analytics.evaluateMonthlyReminder(payments,'2026-08-24',48000,{dueEnabled:true,dueDay:26,goalEnabled:true});
+  assert.equal(nearDue.alerts[0].id,'due');
+  const missed=Analytics.evaluateMonthlyReminder(payments,'2026-08-30',48000,{dueEnabled:true,dueDay:26,goalEnabled:true});
+  assert.ok(missed.alerts.some(alert=>alert.id==='goal'));
+});
+
+test('reconciliation compares against latest payment on or before statement date', () => {
+  const result=Analytics.reconcileBalance(payments,'2026-08-27',1853500);
+  assert.equal(result.referenceDate,'2026-08-26');
+  assert.equal(result.difference,0);
+  assert.equal(result.matches,true);
+});
