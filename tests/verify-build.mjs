@@ -26,12 +26,14 @@ assert.ok(app.includes("buildLatestAnnualInterestCard"), 'overview must show the
 assert.ok(app.includes("buildCurrentMonthCard"), 'overview must show the current month summary');
 assert.ok(app.includes("buildPrincipalInterestChart"), 'overview must show the 12-month principal/interest chart');
 assert.ok(app.includes("buildHistoryFilterCard"), 'history must provide search and filters');
-assert.ok(html.includes("./js/app.js?v=16"), 'HTML must request the updated app bundle without stale browser cache');
-assert.ok(worker.includes("loan-tracker-cache-v16"), 'service worker cache must be bumped for the feature update');
+assert.ok(html.includes("./js/app.js?v=17"), 'HTML must request the updated app bundle without stale browser cache');
+assert.ok(worker.includes("loan-tracker-cache-v17"), 'service worker cache must be bumped for the feature update');
 assert.ok(app.includes('ReceiptStore'), 'app must support local receipt attachment storage');
 assert.ok(app.includes('LoanAnalytics'), 'app must use shared tested financial analytics');
 assert.ok(app.includes('buildScenarioComparison'), 'app must compare three payoff scenarios');
 assert.ok(app.includes('buildReconciliationPage'), 'app must provide bank reconciliation');
+assert.ok(app.includes('buildTaxReportPage'), 'app must provide a joint-borrower tax report');
+assert.ok(!app.includes('${buildReminderBanner(avgPayment)}'), 'overview must not show the monthly goal reminder banner');
 assert.ok(app.includes('openReceiptBackupDialog'), 'app must provide encrypted receipt backup');
 assert.ok(!html.includes('pdf.min.js'), 'PDF reader must not load during initial page load');
 assert.ok(app.includes('PDFJS_SCRIPT_URL') && app.includes("loadScriptOnce(PDFJS_SCRIPT_URL,'pdfjsLib')"), 'PDF reader must load only when a PDF is selected');

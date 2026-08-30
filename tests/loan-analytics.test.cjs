@@ -98,3 +98,19 @@ test('reconciliation compares against latest payment on or before statement date
   assert.equal(result.difference,0);
   assert.equal(result.matches,true);
 });
+
+test('joint borrower tax report divides the combined deduction cap across three people', () => {
+  const report=Analytics.buildJointBorrowerTaxReport([{year:2026,amount:120000,certified:true,source:'certificate'}],2026,['พ่อ','แม่','ฉัน'],100000);
+  assert.equal(report.interestTotal,120000);
+  assert.equal(report.eligibleTotal,100000);
+  assert.equal(report.overCap,20000);
+  assert.deepEqual(report.borrowers.map(person=>person.amount),[33333.34,33333.33,33333.33]);
+  assert.equal(report.borrowers.reduce((sum,person)=>sum+person.amount,0),100000);
+});
+
+test('joint borrower tax report uses actual interest when it is below the cap', () => {
+  const report=Analytics.buildJointBorrowerTaxReport([{year:2026,amount:41145.19,certified:false,source:'actual'}],2026,['พ่อ','แม่','ฉัน'],100000);
+  assert.equal(report.eligibleTotal,41145.19);
+  assert.equal(report.overCap,0);
+  assert.equal(Math.round(report.borrowers.reduce((sum,person)=>sum+person.amount,0)*100)/100,41145.19);
+});

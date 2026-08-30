@@ -1707,6 +1707,11 @@ body{
 
 .reconcile-entry{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:15px; margin-bottom:16px; padding:15px 16px; border:1px solid rgba(200,151,48,.24); border-radius:15px; background:#fff; color:var(--navy-800); text-align:left; cursor:pointer; box-shadow:0 2px 10px rgba(180,150,80,.06); }
 .reconcile-entry span{ display:flex; flex-direction:column; gap:2px; }.reconcile-entry small{ color:var(--ink-soft); }.reconcile-entry b{ white-space:nowrap; color:var(--gold-700); }
+.history-tool-list{ display:grid; gap:9px; margin-bottom:16px; }
+.history-tool-list .reconcile-entry{ margin-bottom:0; }
+.history-tool-list .tax-entry{ background:linear-gradient(135deg,var(--navy-800),var(--navy-700)); border-color:var(--navy-700); color:#fff; }
+.history-tool-list .tax-entry small{ color:rgba(255,255,255,.68); }
+.history-tool-list .tax-entry b{ color:var(--gold-300); }
 .back-link{ margin:-4px 0 14px; border:0; background:transparent; color:var(--gold-700); font-weight:600; cursor:pointer; }
 .reconcile-card{ padding:18px 16px; background:#fff; border:1px solid rgba(180,150,80,.2); border-radius:18px; box-shadow:var(--shadow); }
 .reconcile-form{ display:grid; gap:13px; }
@@ -1718,6 +1723,38 @@ body{
 .reconcile-result span{ font-size:calc(10.5px + var(--font-bump)); line-height:1.5; }
 .reconcile-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
 .reconcile-note{ margin-top:12px; font-size:calc(9.5px + var(--font-bump)); color:var(--ink-soft); }
+
+.tax-report-card{ overflow:hidden; background:#fff; border:1px solid rgba(180,150,80,.2); border-radius:18px; box-shadow:var(--shadow); }
+.tax-year-row{ display:grid; grid-template-columns:140px 1fr; gap:12px; align-items:center; padding:16px; border-bottom:1px solid rgba(180,150,80,.14); }
+.tax-year-row label{ display:grid; gap:5px; font-size:calc(10px + var(--font-bump)); color:var(--ink-soft); }
+.tax-year-row select{ width:100%; padding:9px 10px; border:1px solid rgba(180,150,80,.3); border-radius:9px; background:#fffdfa; color:var(--navy-800); font:600 calc(13px + var(--font-bump)) 'Sarabun'; }
+.tax-status{ min-width:0; display:flex; flex-direction:column; gap:2px; padding-left:12px; border-left:3px solid var(--green); }
+.tax-status.provisional{ border-left-color:var(--gold-500); }
+.tax-status strong{ font-size:calc(11.5px + var(--font-bump)); color:var(--navy-800); }
+.tax-status span{ font-size:calc(9.5px + var(--font-bump)); line-height:1.4; color:var(--ink-soft); }
+.tax-total{ padding:20px 18px; background:linear-gradient(135deg,var(--navy-800),var(--navy-700)); color:#fff; }
+.tax-total > span{ font-size:calc(11px + var(--font-bump)); color:rgba(255,255,255,.72); }
+.tax-total > strong{ display:block; margin:4px 0 15px; font:700 calc(30px + var(--font-bump)) 'Chakra Petch'; color:var(--gold-300); }
+.tax-total > strong small{ font:500 calc(11px + var(--font-bump)) 'Sarabun'; color:rgba(255,255,255,.72); }
+.tax-total > div{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:12px; border-top:1px solid rgba(255,255,255,.14); font-size:calc(11px + var(--font-bump)); }
+.tax-total > div b{ color:#fff; font-size:calc(14px + var(--font-bump)); }
+.tax-total > p{ margin-top:7px; font-size:calc(9.5px + var(--font-bump)); color:#f4c9bd; }
+.tax-split-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:17px 18px 8px; }
+.tax-split-head h3{ font:700 calc(15px + var(--font-bump)) 'Chakra Petch'; color:var(--navy-800); }
+.tax-split-head span{ font-size:calc(9.5px + var(--font-bump)); color:var(--gold-700); }
+.tax-borrower-list{ padding:0 18px; }
+.tax-borrower-row{ display:grid; grid-template-columns:32px 1fr auto; align-items:center; gap:10px; padding:13px 0; border-bottom:1px solid rgba(180,150,80,.14); }
+.tax-person-index{ display:grid; place-items:center; width:30px; height:30px; border-radius:50%; background:var(--gold-100); color:var(--gold-700); font:700 12px 'Chakra Petch'; }
+.tax-borrower-row > div{ display:flex; flex-direction:column; gap:1px; }
+.tax-borrower-row strong{ font-size:calc(12.5px + var(--font-bump)); color:var(--navy-800); }
+.tax-borrower-row small{ font-size:calc(9px + var(--font-bump)); color:var(--ink-soft); }
+.tax-borrower-row > b{ font:600 calc(13px + var(--font-bump)) 'Chakra Petch'; color:var(--gold-700); white-space:nowrap; }
+.tax-rule-note{ margin:15px 18px 0; padding:13px 14px; border-radius:12px; background:var(--gold-100); color:var(--navy-800); }
+.tax-rule-note strong{ font-size:calc(11px + var(--font-bump)); }
+.tax-rule-note p{ margin-top:3px; font-size:calc(9.5px + var(--font-bump)); line-height:1.5; color:var(--ink-soft); }
+.tax-rule-note a{ display:inline-block; margin-top:5px; color:var(--gold-700); font-size:calc(9.5px + var(--font-bump)); font-weight:600; }
+.tax-report-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:15px 18px 0; }
+.tax-source{ padding:10px 18px 17px; font-size:calc(9px + var(--font-bump)); line-height:1.5; color:var(--ink-soft); }
 
 @media (max-width:620px){
   .wrap{ padding-bottom:calc(102px + env(safe-area-inset-bottom,0px)); }
@@ -1735,6 +1772,12 @@ body{
   .rate-status-grid,.receipt-backup-actions,.reconcile-actions{ grid-template-columns:1fr; }
   .scenario-row > div:last-child{ align-items:flex-end; }
   .scenario-range{ font-size:8.5px; }
+  .tax-year-row{ grid-template-columns:1fr; }
+  .tax-status{ padding:8px 0 0; border-left:0; border-top:3px solid var(--green); }
+  .tax-status.provisional{ border-top-color:var(--gold-500); }
+  .tax-report-actions{ grid-template-columns:1fr; }
+  .tax-borrower-row{ grid-template-columns:30px 1fr; }
+  .tax-borrower-row > b{ grid-column:2; }
 }
 .month-summary-card .month-progress p strong{ color:var(--gold-700); }
 .split-chart-head{

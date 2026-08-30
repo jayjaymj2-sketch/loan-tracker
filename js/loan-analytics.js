@@ -199,5 +199,30 @@
     return {date:targetDate,bankBalance:bank,appBalance,difference,matches:difference!=null&&Math.abs(difference)<=1,referenceDate:reference?reference.date:''};
   }
 
-  return {orderPaymentEntries,buildMonthlySeries,getMonthlyPaymentStats,summarizeMonth,buildAnnualInterestSummary,compareInterestYTD,filterPaymentEntries,projectPayoffFixedRate,projectPayoffSchedule,buildPayoffScenarios,evaluateMonthlyReminder,reconcileBalance};
+  function buildJointBorrowerTaxReport(annualSummary,year,borrowerNames,combinedCap){
+    const selected=(Array.isArray(annualSummary)?annualSummary:[]).find(item=>Number(item.year)===Number(year));
+    const names=(Array.isArray(borrowerNames)?borrowerNames:[]).map(String).filter(Boolean);
+    if(!selected||!names.length) return null;
+    const interestTotal=Math.max(0,Math.round(num(selected.amount)*100)/100);
+    const cap=Math.max(0,num(combinedCap)||100000);
+    const eligibleTotal=Math.min(interestTotal,cap);
+    const eligibleCents=Math.round(eligibleTotal*100);
+    const baseCents=Math.floor(eligibleCents/names.length);
+    const remainder=eligibleCents-baseCents*names.length;
+    const borrowers=names.map((name,index)=>({name,amount:(baseCents+(index<remainder?1:0))/100}));
+    return {
+      year:Number(selected.year),
+      interestTotal,
+      eligibleTotal:eligibleCents/100,
+      overCap:Math.max(0,Math.round((interestTotal-eligibleCents/100)*100)/100),
+      combinedCap:cap,
+      borrowerCount:names.length,
+      borrowers,
+      certified:!!selected.certified,
+      source:String(selected.source||''),
+      lastPaymentDate:String(selected.lastPaymentDate||'')
+    };
+  }
+
+  return {orderPaymentEntries,buildMonthlySeries,getMonthlyPaymentStats,summarizeMonth,buildAnnualInterestSummary,compareInterestYTD,filterPaymentEntries,projectPayoffFixedRate,projectPayoffSchedule,buildPayoffScenarios,evaluateMonthlyReminder,reconcileBalance,buildJointBorrowerTaxReport};
 });
