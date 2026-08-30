@@ -119,6 +119,13 @@ const BACKUP_HISTORY_KEY = 'lt_backup_history_v1';
 const UI_PREFS_KEY = 'lt_ui_prefs_v1';
 let plannerState = { tab:'simulate', payment:null, lumpSum:0, targetDate:'' };
 let uiState = { page:'overview', fontSize:'normal' };
+let historyFilters = { query:'', year:'all', type:'all' };
+let receiptAttachmentMeta = new Map();
+let pendingReceiptFile = null;
+let pendingReceiptTargetId = null;
+let currentReceiptViewer = null;
+let currentReceiptObjectUrl = '';
+let appUpdateRegistration = null;
 try{
   const savedPlanner = JSON.parse(localStorage.getItem(PLANNER_PREFS_KEY) || 'null');
   if(savedPlanner && typeof savedPlanner === 'object') plannerState = Object.assign(plannerState, savedPlanner);
@@ -291,36 +298,8 @@ function thaiDate(dateStr){
 // รวมดอกเบี้ยรายปี: ใช้ยอดจากหนังสือรับรองสำหรับปีที่ปิดยอดแล้ว
 // และใช้รายการชำระจริงสำหรับปีถัดจากหนังสือรับรองล่าสุด เพื่อไม่ให้ยอดปัจจุบันหยุดค้างอยู่ที่ค่าคงที่
 function buildAnnualInterestSummary(){
-  const summary = ANNUAL_INTEREST_HISTORY.map(y => ({ ...y, certified: true }));
-  const actualByYear = {};
-
-  for(const p of state.payments){
-    const year = parseInt(String(p.date || '').slice(0, 4), 10);
-    const interest = Number(p.interest);
-    if(!Number.isFinite(year) || year <= LAST_CERTIFIED_INTEREST_YEAR || !Number.isFinite(interest)) continue;
-
-    if(!actualByYear[year]){
-      actualByYear[year] = { year, amount: 0, paymentCount: 0, lastPaymentDate: '' };
-    }
-    actualByYear[year].amount += interest;
-    actualByYear[year].paymentCount += 1;
-    if(!actualByYear[year].lastPaymentDate || p.date > actualByYear[year].lastPaymentDate){
-      actualByYear[year].lastPaymentDate = p.date;
-    }
-  }
-
-  for(const year of Object.keys(actualByYear).map(Number).sort((a,b)=>a-b)){
-    const item = actualByYear[year];
-    summary.push({
-      year,
-      amount: Math.round(item.amount * 100) / 100,
-      source: `จากรายการชำระจริง ${item.paymentCount} รายการ · ถึง ${thaiDate(item.lastPaymentDate)}`,
-      lastPaymentDate: item.lastPaymentDate,
-      certified: false
-    });
-  }
-
-  return summary;
+  if(typeof LoanAnalytics==='undefined') return ANNUAL_INTEREST_HISTORY.map(y=>({...y,certified:true}));
+  return LoanAnalytics.buildAnnualInterestSummary(ANNUAL_INTEREST_HISTORY,state.payments,LAST_CERTIFIED_INTEREST_YEAR,thaiDate);
 }
 
 async function loadState(){
@@ -579,19 +558,42 @@ async function doPullRefresh(indicator, textEl){
 function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return;
 
-  // เมื่อ Service Worker เวอร์ชันใหม่เข้าควบคุมหน้าเว็บ (activate สำเร็จ) ให้รีโหลดหน้าอัตโนมัติ 1 ครั้ง
-  // เพื่อดึงโค้ด/ข้อมูลชุดใหม่มาแสดงทันที แก้ปัญหา "ต้องเปิด 2 รอบถึงจะเห็นของใหม่" ในอนาคต
   let hasReloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if(hasReloaded) return; // กันรีโหลดวนซ้ำ
+    if(hasReloaded) return;
     hasReloaded = true;
     window.location.reload();
   });
 
   navigator.serviceWorker.register('./service-worker.js').then((reg) => {
-    // เช็คอัปเดตทันทีทุกครั้งที่เปิดแอพ แทนที่จะรอให้เบราว์เซอร์เช็คเองตามรอบของมัน
+    appUpdateRegistration=reg;
+    if(reg.waiting&&navigator.serviceWorker.controller) showAppUpdateBanner();
+    reg.addEventListener('updatefound',()=>{
+      const worker=reg.installing;
+      if(!worker) return;
+      worker.addEventListener('statechange',()=>{
+        if(worker.state==='installed'&&navigator.serviceWorker.controller) showAppUpdateBanner();
+      });
+    });
     reg.update().catch(()=>{});
   }).catch(()=>{});
+}
+
+function showAppUpdateBanner(){
+  const root=document.getElementById('update-root');
+  if(!root) return;
+  root.innerHTML=`<div class="app-update-banner" role="status"><div><strong>มีแอปเวอร์ชันใหม่</strong><span>อัปเดตเพื่อรับฟีเจอร์และการแก้ไขล่าสุด</span></div><div><button onclick="dismissAppUpdate()">ภายหลัง</button><button class="update-now" onclick="applyAppUpdate()">อัปเดตตอนนี้</button></div></div>`;
+}
+
+function dismissAppUpdate(){
+  const root=document.getElementById('update-root');
+  if(root) root.innerHTML='';
+}
+
+function applyAppUpdate(){
+  const waiting=appUpdateRegistration&&appUpdateRegistration.waiting;
+  if(waiting) waiting.postMessage({type:'SKIP_WAITING'});
+  else window.location.reload();
 }
 
 
@@ -668,19 +670,7 @@ function addMonths(dateStr, n){
 }
 
 function getMonthlyPaymentStats(){
-  const monthlyTotals = {};
-  for(const p of state.payments){
-    const monthKey = String(p.date || '').slice(0,7);
-    if(!/^\d{4}-\d{2}$/.test(monthKey)) continue;
-    monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + Number(p.amount || 0);
-  }
-  const allMonthKeys = Object.keys(monthlyTotals).sort();
-  const recentKeys = allMonthKeys.slice(-12);
-  const basisKeys = recentKeys.length ? recentKeys : allMonthKeys;
-  const average = basisKeys.length
-    ? basisKeys.reduce((sum,key)=>sum+monthlyTotals[key],0) / basisKeys.length
-    : 50000;
-  return { monthlyTotals, allMonthKeys, basisKeys, average, basisMonths:basisKeys.length };
+  return LoanAnalytics.getMonthlyPaymentStats(state.payments,12);
 }
 
 function savePlannerPrefs(){
@@ -853,13 +843,7 @@ function analyzeDataQuality(){
 }
 
 function getCurrentMonthSummary(avgPayment){
-  const key=todayStr().slice(0,7);
-  const rows=state.payments.filter(p=>String(p.date||'').slice(0,7)===key);
-  const paid=rows.reduce((s,p)=>s+Number(p.amount||0),0);
-  const principal=rows.reduce((s,p)=>s+Number(p.principalPaid||0),0);
-  const interest=rows.reduce((s,p)=>s+Number(p.interest||0),0);
-  const pct=avgPayment>0?Math.max(0,Math.min(100,paid/avgPayment*100)):0;
-  return {paid,principal,interest,pct,count:rows.length,goalMet:paid>=avgPayment};
+  return LoanAnalytics.summarizeMonth(state.payments,todayStr(),avgPayment);
 }
 
 function setPlannerTab(tab){
@@ -1341,10 +1325,34 @@ function buildPageHeading(title,description){
   return `<header class="page-heading"><h2>${title}</h2><p>${description}</p></header>`;
 }
 
+function thaiMonthYear(monthKey){
+  const names=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const [year,month]=String(monthKey).split('-').map(Number);
+  return `${names[Math.max(0,month-1)]} ${year+543}`;
+}
+
+function buildCurrentMonthCard(avgPayment){
+  const summary=getCurrentMonthSummary(avgPayment);
+  const status=summary.goalMet?'ถึงค่าเฉลี่ยแล้ว':`เหลืออีก ${fmt(summary.remaining,0)} บาทถึงค่าเฉลี่ย`;
+  return `<section class="month-summary-card" aria-label="สรุปเดือนนี้"><div class="month-summary-head"><div><h3>สรุปเดือนนี้</h3><span>${thaiMonthYear(summary.key)}</span></div><strong>${fmt(summary.paid,0)} <small>บาท</small></strong></div><div class="month-summary-metrics"><div><span>เงินต้น</span><strong>${fmt(summary.principal,0)}</strong></div><div><span>ดอกเบี้ย</span><strong>${fmt(summary.interest,0)}</strong></div><div><span>เป้าหมายเฉลี่ย</span><strong>${fmt(avgPayment,0)}</strong></div></div><div class="month-progress"><div><span style="width:${summary.pct}%"></span></div><p><strong>${Math.round(summary.pct)}%</strong> ของค่าเฉลี่ย 12 เดือน · ${status}</p></div></section>`;
+}
+
+function buildPrincipalInterestChart(){
+  const series=LoanAnalytics.buildMonthlySeries(state.payments,todayStr(),12);
+  const maxAmount=Math.max(...series.map(row=>row.amount),1);
+  const bars=series.map(row=>{
+    const totalHeight=row.amount/maxAmount*100;
+    const interestPct=row.amount>0?row.interest/row.amount*100:0;
+    const principalPct=row.amount>0?row.principal/row.amount*100:0;
+    const [year]=row.key.split('-').map(Number);
+    const month=thaiMonthYear(row.key).split(' ')[0];
+    return `<div class="split-chart-column" title="${thaiMonthYear(row.key)} · เงินต้น ${fmt(row.principal,0)} · ดอกเบี้ย ${fmt(row.interest,0)}"><div class="split-chart-track"><div class="split-chart-stack" style="height:${totalHeight}%"><span class="split-interest" style="height:${interestPct}%"></span><span class="split-principal" style="height:${principalPct}%"></span></div></div><span>${month}<small>${String(year+543).slice(-2)}</small></span></div>`;
+  }).join('');
+  return `<section class="split-chart-card" aria-label="เงินต้นเทียบดอกเบี้ย 12 เดือน"><div class="split-chart-head"><h3>เงินต้นเทียบดอกเบี้ย 12 เดือน</h3><div><span><i class="principal"></i>เงินต้น</span><span><i class="interest"></i>ดอกเบี้ย</span></div></div><div class="split-chart-plot">${bars}</div><p>รวมยอดชำระจริงรายเดือน · แตะแท่งเพื่อดูรายละเอียด</p></section>`;
+}
+
 function buildRecentPayments(){
-  // ใช้ลำดับเดียวกับหน้าประวัติ: รายการที่บันทึกล่าสุดอยู่บนสุด
-  // สำคัญกับวันที่ที่มีหลายรายการ เพราะหากเรียงเฉพาะวันที่ ลำดับภายในวันจะไม่ตรงกัน
-  const recent=state.payments.slice(-5).reverse();
+  const recent=LoanAnalytics.orderPaymentEntries(state.payments).slice(0,5).map(entry=>entry.payment);
   if(!recent.length) return '';
   return `<section class="recent-card" aria-label="การชำระล่าสุด 5 ครั้ง"><div class="recent-head"><h3>การชำระล่าสุด 5 ครั้ง</h3><button onclick="setAppPage('history')">ดูประวัติทั้งหมด</button></div>${recent.map(payment=>`<div class="recent-row"><div><strong>${thaiDate(payment.date)}</strong><span>ดอกเบี้ย ${fmt(payment.interest)} · เงินต้น ${fmt(payment.principalPaid)}</span></div><div><strong>-${fmt(payment.amount)} บาท</strong><span>คงเหลือ ${fmt(payment.balanceAfter)}</span></div></div>`).join('')}</section>`;
 }
@@ -1352,15 +1360,223 @@ function buildRecentPayments(){
 function buildLatestAnnualInterestCard(annualInterestSummary){
   const latest=annualInterestSummary[annualInterestSummary.length-1];
   if(!latest) return '';
-  return `<section class="overview-interest-card" aria-label="สรุปดอกเบี้ยปีล่าสุด"><div class="overview-interest-head"><div><span>สรุปดอกเบี้ยปีล่าสุด</span><strong>ปี ${latest.year+543}</strong></div><button onclick="setAppPage('history')">ดูรายปีทั้งหมด</button></div><div class="overview-interest-summary"><span>ดอกเบี้ยจ่ายแล้ว</span><strong>${fmt(latest.amount,2)} บาท</strong><small>${latest.source}</small></div></section>`;
+  const cutoff=latest.lastPaymentDate||`${latest.year}-12-31`;
+  const comparison=LoanAnalytics.compareInterestYTD(state.payments,latest.year,cutoff);
+  const hasPrevious=comparison.previousAmount>0;
+  const deltaText=hasPrevious?`${comparison.delta<=0?'ลดลง':'เพิ่มขึ้น'} ${fmt(Math.abs(comparison.delta),2)} บาท (${Math.abs(comparison.pct).toFixed(1)}%)`:'ยังไม่มีข้อมูลช่วงเดียวกันของปีก่อน';
+  return `<section class="overview-interest-card" aria-label="สรุปดอกเบี้ยปีล่าสุด"><div class="overview-interest-head"><div><span>สรุปดอกเบี้ยปีล่าสุด</span><strong>ปี ${latest.year+543}</strong></div><button onclick="setAppPage('history')">ดูรายปีทั้งหมด</button></div><div class="overview-interest-summary"><span>ดอกเบี้ยจ่ายแล้ว</span><strong>${fmt(latest.amount,2)} บาท</strong><small>${latest.source}</small></div><div class="interest-comparison"><div><span>เทียบช่วงเดียวกันของปี ${comparison.previousYear+543}</span><strong class="${comparison.delta<=0?'good':'bad'}">${deltaText}</strong></div><div><span>คาดการณ์ทั้งปี</span><strong>${fmt(comparison.projected,0)} บาท</strong></div></div></section>`;
 }
 
 function buildAnnualInterestCard(annualInterestSummary,lifetimeInterestTotal,lifetimeInterestAsOf){
-  return `<div class="section-title">สรุปดอกเบี้ยรายปี</div><div class="form-card annual-interest-card"><div class="annual-interest-list">${annualInterestSummary.map(y=>`<div class="annual-interest-row"><span>ปี ${y.year+543}</span><span><strong>${fmt(y.amount,2)} บาท</strong><small>${y.source}</small></span></div>`).join('')}<div class="annual-interest-total"><span>รวมทั้งหมด${lifetimeInterestAsOf?`ถึง ${thaiDate(lifetimeInterestAsOf)}`:''}</span><strong>${fmt(lifetimeInterestTotal,2)} บาท</strong></div></div></div>`;
+  const latest=annualInterestSummary[annualInterestSummary.length-1];
+  return `<div class="section-title">สรุปดอกเบี้ยรายปี</div><details class="form-card annual-interest-card annual-interest-details"><summary><div><span>ปีล่าสุด ${latest?latest.year+543:'—'}</span><strong>${latest?fmt(latest.amount,2):'—'} บาท</strong></div><div><span>ดอกเบี้ยสะสม</span><strong>${fmt(lifetimeInterestTotal,2)} บาท</strong></div><small>แตะเพื่อดูรายปีทั้งหมด</small></summary><div class="annual-interest-list">${annualInterestSummary.map(y=>`<div class="annual-interest-row"><span>ปี ${y.year+543}</span><span><strong>${fmt(y.amount,2)} บาท</strong><small>${y.source}</small></span></div>`).join('')}<div class="annual-interest-total"><span>รวมทั้งหมด${lifetimeInterestAsOf?`ถึง ${thaiDate(lifetimeInterestAsOf)}`:''}</span><strong>${fmt(lifetimeInterestTotal,2)} บาท</strong></div></div></details>`;
+}
+
+function escapeHtml(value){
+  return String(value==null?'':value).replace(/[&<>"']/g,char=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[char]);
+}
+
+function receiptKeyForPayment(payment){
+  if(payment&&payment.id) return String(payment.id);
+  const p=payment||{};
+  return `legacy:${p.date||''}:${Number(p.amount||0).toFixed(2)}:${Number(p.balanceAfter||0).toFixed(2)}:${Number(p.principalPaid||0).toFixed(2)}`;
+}
+
+function getHistoryEntries(){
+  return LoanAnalytics.orderPaymentEntries(state.payments).map(entry=>Object.assign({},entry,{
+    receiptKey:receiptKeyForPayment(entry.payment),
+    payment:Object.assign({},entry.payment,{receiptKey:receiptKeyForPayment(entry.payment),searchText:thaiDate(entry.payment.date)})
+  }));
+}
+
+function getFilteredHistoryEntries(){
+  return LoanAnalytics.filterPaymentEntries(getHistoryEntries(),historyFilters,[...receiptAttachmentMeta.keys()]);
+}
+
+function buildHistoryFilterCard(totalCount,filteredCount){
+  const years=[...new Set(state.payments.map(payment=>String(payment.date||'').slice(0,4)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  return `<section class="history-filter-card" aria-label="ค้นหาและกรองประวัติ"><label class="history-search"><span>ค้นหารายการ</span><input type="search" value="${escapeHtml(historyFilters.query)}" placeholder="วันที่ หรือจำนวนเงิน" oninput="setHistoryQuery(this.value)"></label><div class="history-filter-controls"><label><span>ปี</span><select onchange="setHistoryYear(this.value)"><option value="all">ทุกปี</option>${years.map(year=>`<option value="${year}" ${historyFilters.year===year?'selected':''}>ปี ${Number(year)+543}</option>`).join('')}</select></label><label><span>ประเภท</span><select onchange="setHistoryType(this.value)"><option value="all" ${historyFilters.type==='all'?'selected':''}>ทุกรายการ</option><option value="regular" ${historyFilters.type==='regular'?'selected':''}>ผ่อนปกติ</option><option value="extra" ${historyFilters.type==='extra'?'selected':''}>ตัดเงินต้นเพิ่ม</option><option value="receipt" ${historyFilters.type==='receipt'?'selected':''}>มีใบเสร็จ</option></select></label></div><div class="history-filter-foot"><strong id="history-result-count">พบ ${filteredCount} จาก ${totalCount} รายการ</strong><span>รูปใบเสร็จเก็บเฉพาะเครื่องนี้</span></div><input id="history-receipt-input" type="file" accept="application/pdf,image/*" hidden onchange="handleHistoryReceiptAttachment(event)"></section>`;
+}
+
+function buildHistoryResultsHtml(entries){
+  if(!entries.length) return `<div class="history-empty">${state.payments.length?'ไม่พบรายการที่ตรงกับตัวกรอง':'ยังไม่มีประวัติการผ่อนชำระ<br>เริ่มบันทึกครั้งแรกได้เลย'}</div>`;
+  const groups={};
+  entries.forEach(entry=>{
+    const year=Number(String(entry.payment.date||'').slice(0,4));
+    (groups[year]=groups[year]||[]).push(entry);
+  });
+  const years=Object.keys(groups).map(Number).sort((a,b)=>b-a);
+  if(expandedYears===null) expandedYears=new Set([years[0]]);
+  const filtering=historyFilters.query.trim()||historyFilters.year!=='all'||historyFilters.type!=='all';
+  return years.map(year=>{
+    const items=groups[year];
+    const total=items.reduce((sum,entry)=>sum+Number(entry.payment.amount||0),0);
+    const endBalance=items[0].payment.balanceAfter;
+    const isOpen=filtering||expandedYears.has(year);
+    const rows=items.map(entry=>{
+      const payment=entry.payment;
+      const synced=isConfigured()&&!!getSavedPass();
+      const showDelete=canDeletePayment(payment)&&(!synced||entry.index===state.payments.length-1);
+      const hasReceipt=receiptAttachmentMeta.has(entry.receiptKey);
+      const encodedKey=encodeURIComponent(entry.receiptKey);
+      return `<div class="history-item"><div class="hi-left"><div class="hi-date">${thaiDate(payment.date)}</div><div class="hi-meta">ดอกเบี้ย ${fmt(payment.interest)} · เงินต้น ${fmt(payment.principalPaid)}</div><div class="hi-actions"><button class="receipt-action ${hasReceipt?'attached':''}" onclick="event.stopPropagation(); ${hasReceipt?'openReceiptAttachment':'chooseReceiptForPayment'}(decodeURIComponent('${encodedKey}'))">${hasReceipt?'ดูใบเสร็จ':'แนบใบเสร็จ'}</button></div></div><div class="hi-right"><div><div class="hi-amount">-${fmt(payment.amount)} บาท</div><div class="hi-balance">คงเหลือ ${fmt(payment.balanceAfter)}</div></div>${showDelete?`<button class="delete-btn" onclick="event.stopPropagation(); deletePayment(${entry.index})">ลบ</button>`:''}</div></div>`;
+    }).join('');
+    return `<div class="year-group ${isOpen?'open':''}"><div class="year-head" onclick="toggleYear(${year})"><div class="yh-left"><span class="yh-chevron">▶</span><span class="yh-year">ปี ${year+543}</span><span class="yh-count">${items.length} งวด</span></div><div class="yh-right"><div class="yh-paid">${fmt(total,0)} บาท</div><div class="yh-endbal">คงเหลือสิ้นปี ${fmt(endBalance,0)}</div></div></div><div class="year-body">${rows}</div></div>`;
+  }).join('');
+}
+
+function refreshHistoryResults(){
+  const root=document.getElementById('history-results-root');
+  const entries=getFilteredHistoryEntries();
+  if(root) root.innerHTML=buildHistoryResultsHtml(entries);
+  const count=document.getElementById('history-result-count');
+  if(count) count.textContent=`พบ ${entries.length} จาก ${state.payments.length} รายการ`;
+}
+
+function setHistoryQuery(value){ historyFilters.query=value; refreshHistoryResults(); }
+function setHistoryYear(value){ historyFilters.year=value; refreshHistoryResults(); }
+function setHistoryType(value){ historyFilters.type=value; refreshHistoryResults(); }
+
+function formatFileSize(bytes){
+  const size=Number(bytes||0);
+  if(size<1024) return `${size} B`;
+  if(size<1024*1024) return `${(size/1024).toFixed(1)} KB`;
+  return `${(size/1024/1024).toFixed(1)} MB`;
+}
+
+async function loadReceiptAttachmentMeta(){
+  if(typeof ReceiptStore==='undefined') return;
+  try{
+    const items=await ReceiptStore.listMeta();
+    receiptAttachmentMeta=new Map(items.map(item=>[String(item.paymentId),item]));
+  }catch(error){
+    console.warn('Receipt metadata unavailable:',error);
+  }
+}
+
+async function imageSourceFromFile(file){
+  if(typeof createImageBitmap==='function'){
+    const bitmap=await createImageBitmap(file);
+    return {image:bitmap,width:bitmap.width,height:bitmap.height,cleanup:()=>bitmap.close()};
+  }
+  const url=URL.createObjectURL(file);
+  const image=await new Promise((resolve,reject)=>{
+    const element=new Image();
+    element.onload=()=>resolve(element);
+    element.onerror=()=>reject(new Error('เปิดรูปใบเสร็จไม่สำเร็จ'));
+    element.src=url;
+  });
+  return {image,width:image.naturalWidth,height:image.naturalHeight,cleanup:()=>URL.revokeObjectURL(url)};
+}
+
+async function prepareReceiptArchiveRecord(file,paymentId){
+  const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');
+  const isImage=file.type.startsWith('image/');
+  if(!isPdf&&!isImage) throw new Error('รองรับไฟล์ PDF, JPG, PNG และ WebP');
+  if(file.size>15*1024*1024) throw new Error('ไฟล์มีขนาดเกิน 15 MB');
+  let blob=file;
+  let name=file.name||`ใบเสร็จ.${isPdf?'pdf':'jpg'}`;
+  if(isImage){
+    const source=await imageSourceFromFile(file);
+    try{
+      const scale=Math.min(1,1800/Math.max(source.width,source.height));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(source.width*scale));
+      canvas.height=Math.max(1,Math.round(source.height*scale));
+      const context=canvas.getContext('2d');
+      context.drawImage(source.image,0,0,canvas.width,canvas.height);
+      const compressed=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.84));
+      if(compressed){ blob=compressed; name=name.replace(/\.[^.]+$/,'.jpg'); }
+    }finally{
+      source.cleanup();
+    }
+  }
+  return {paymentId:String(paymentId),name,type:blob.type||(isPdf?'application/pdf':'image/jpeg'),size:blob.size,createdAt:new Date().toISOString(),blob};
+}
+
+async function storeReceiptForPayment(paymentId,file){
+  if(typeof ReceiptStore==='undefined') throw new Error('โหลดคลังใบเสร็จไม่สำเร็จ');
+  const record=await prepareReceiptArchiveRecord(file,paymentId);
+  await ReceiptStore.save(record);
+  receiptAttachmentMeta.set(String(paymentId),{
+    paymentId:String(paymentId),name:record.name,type:record.type,size:record.size,createdAt:record.createdAt
+  });
+  return record;
+}
+
+function chooseReceiptForPayment(paymentId){
+  pendingReceiptTargetId=String(paymentId);
+  const input=document.getElementById('history-receipt-input');
+  if(input) input.click();
+}
+
+async function handleHistoryReceiptAttachment(event){
+  const file=event.target.files&&event.target.files[0];
+  event.target.value='';
+  const paymentId=pendingReceiptTargetId;
+  pendingReceiptTargetId=null;
+  if(!file||!paymentId) return;
+  showToast('กำลังเก็บใบเสร็จในเครื่องนี้...');
+  try{
+    await storeReceiptForPayment(paymentId,file);
+    refreshHistoryResults();
+    showToast('แนบใบเสร็จแล้ว ✓ เก็บเฉพาะเครื่องนี้');
+  }catch(error){
+    showToast(error.message||'เก็บใบเสร็จไม่สำเร็จ');
+  }
+}
+
+async function openReceiptAttachment(paymentId){
+  try{
+    const record=await ReceiptStore.get(String(paymentId));
+    if(!record){
+      receiptAttachmentMeta.delete(String(paymentId));
+      refreshHistoryResults();
+      showToast('ไม่พบไฟล์ใบเสร็จในเครื่องนี้');
+      return;
+    }
+    closeReceiptViewer();
+    currentReceiptViewer=record;
+    currentReceiptObjectUrl=URL.createObjectURL(record.blob);
+    const payment=state.payments.find(item=>receiptKeyForPayment(item)===String(paymentId));
+    document.getElementById('receipt-viewer-title').textContent=payment?`ใบเสร็จ ${thaiDate(payment.date)}`:'ใบเสร็จ';
+    const preview=document.getElementById('receipt-viewer-preview');
+    preview.innerHTML=String(record.type||'').startsWith('image/')?`<img src="${currentReceiptObjectUrl}" alt="รูปใบเสร็จ">`:`<div class="receipt-pdf-preview"><strong>PDF</strong><span>แตะ “เปิดไฟล์” เพื่อดูใบเสร็จ</span></div>`;
+    document.getElementById('receipt-viewer-meta').textContent=`${record.name} · ${formatFileSize(record.size)}`;
+    document.getElementById('receipt-viewer-open').onclick=()=>window.open(currentReceiptObjectUrl,'_blank','noopener');
+    document.getElementById('receipt-viewer-delete').onclick=removeCurrentReceiptAttachment;
+    document.getElementById('receipt-viewer-overlay').classList.add('show');
+  }catch(error){
+    showToast(error.message||'เปิดใบเสร็จไม่สำเร็จ');
+  }
+}
+
+function closeReceiptViewer(){
+  const overlay=document.getElementById('receipt-viewer-overlay');
+  if(overlay) overlay.classList.remove('show');
+  if(currentReceiptObjectUrl) URL.revokeObjectURL(currentReceiptObjectUrl);
+  currentReceiptObjectUrl='';
+  currentReceiptViewer=null;
+}
+
+function removeCurrentReceiptAttachment(){
+  if(!currentReceiptViewer) return;
+  const paymentId=String(currentReceiptViewer.paymentId);
+  showConfirm('ลบไฟล์ใบเสร็จจากเครื่องนี้? รายการผ่อนจะยังอยู่',async()=>{
+    try{
+      await ReceiptStore.remove(paymentId);
+      receiptAttachmentMeta.delete(paymentId);
+      closeReceiptViewer();
+      refreshHistoryResults();
+      showToast('ลบไฟล์ใบเสร็จแล้ว');
+    }catch(error){ showToast('ลบไฟล์ไม่สำเร็จ'); }
+  },'ลบไฟล์');
 }
 
 function buildPaymentForm(){
-  return `<div class="section-title">บันทึกการผ่อนชำระ</div><div class="form-card"><div class="form-row"><label>วันที่ชำระ</label><input type="date" id="pay-date" value="${todayStr()}"><div class="date-thai" id="date-thai"></div></div><div class="form-row"><label>จำนวนเงินที่ชำระ (บาท)</label><input type="number" id="pay-amount" placeholder="เช่น 19600" inputmode="decimal" value=""></div><div class="preview-box" id="preview-box"></div><div class="btn-row payment-submit-row"><button class="btn btn-primary" onclick="submitPayment()">บันทึกการผ่อน</button></div><div class="receipt-upload-row"><div class="ru-label">หรือเลือกใบเสร็จ SCB แบบ PDF หรือรูปถ่าย แอพจะอ่านข้อมูลในเครื่องนี้โดยไม่อัปโหลดไฟล์</div><button class="btn-upload" id="receipt-upload-btn" onclick="document.getElementById('receipt-file-input').click()">🧾 PDF / รูปภาพ</button><input type="file" id="receipt-file-input" accept="application/pdf,image/*" style="display:none" onchange="handleReceiptFile(event)"></div></div>`;
+  return `<div class="section-title">บันทึกการผ่อนชำระ</div><details class="form-card payment-form-details"><summary><div><strong>+  เพิ่มรายการชำระ</strong><span>กรอกยอดเอง หรืออ่านจาก PDF / รูปใบเสร็จ</span></div><small>แตะเพื่อเปิด</small></summary><div class="payment-form-body"><div class="form-row"><label>วันที่ชำระ</label><input type="date" id="pay-date" value="${todayStr()}"><div class="date-thai" id="date-thai"></div></div><div class="form-row"><label>จำนวนเงินที่ชำระ (บาท)</label><input type="number" id="pay-amount" placeholder="เช่น 19600" inputmode="decimal" value=""></div><div class="preview-box" id="preview-box"></div><div class="btn-row payment-submit-row"><button class="btn btn-primary" onclick="submitPayment()">บันทึกการผ่อน</button></div><div class="receipt-upload-row"><div class="ru-label">หรือเลือกใบเสร็จ SCB แบบ PDF หรือรูปถ่าย แอพจะอ่านข้อมูลในเครื่องนี้โดยไม่อัปโหลดไฟล์</div><button class="btn-upload" id="receipt-upload-btn" onclick="document.getElementById('receipt-file-input').click()">🧾 PDF / รูปภาพ</button><input type="file" id="receipt-file-input" accept="application/pdf,image/*" style="display:none" onchange="handleReceiptFile(event)"></div></div></details>`;
 }
 
 function buildSettingsPage(balance,avgPayment,lifetimeInterestTotal){
@@ -1420,70 +1636,8 @@ function render(){
     payoffBasisText = 'ปรับยอดผ่อนเพื่อให้เงินต้นลดลง';
   }
 
-  // จัดกลุ่มประวัติตามปี (พ.ศ.) เป็นแบบพับเก็บได้ เพื่อไม่ให้รายการยาวเกินไป
-  let historyHtml;
-  if(state.payments.length === 0){
-    historyHtml = `<div class="history-empty">ยังไม่มีประวัติการผ่อนชำระ<br>เริ่มบันทึกครั้งแรกได้เลย</div>`;
-  } else {
-    // เก็บ index เดิมไว้กับแต่ละรายการ (ใช้ตอนกดลบ)
-    const indexed = state.payments.map((p, idx) => ({ p, idx }));
-    // จัดกลุ่มตามปี ค.ศ.
-    const groups = {};
-    for(const item of indexed){
-      const yr = parseInt(item.p.date.slice(0,4), 10);
-      (groups[yr] = groups[yr] || []).push(item);
-    }
-    const yearsDesc = Object.keys(groups).map(Number).sort((a,b)=>b-a);
-
-    // เริ่มต้น: เปิดเฉพาะปีล่าสุด ถ้ายังไม่เคยตั้งค่า
-    if(expandedYears === null){
-      expandedYears = new Set([yearsDesc[0]]);
-    }
-
-    historyHtml = yearsDesc.map(yr => {
-      const items = groups[yr]; // เรียงตามวันที่ (เก่า->ใหม่) ตามลำดับใน payments
-      const count = items.length;
-      const totalPaid = items.reduce((s,it)=>s+it.p.amount, 0);
-      // ยอดคงเหลือสิ้นปี = balanceAfter ของรายการสุดท้ายในปีนั้น
-      const endBal = items[items.length-1].p.balanceAfter;
-      const isOpen = expandedYears.has(yr);
-
-      const rows = items.slice().reverse().map(({p, idx}) => {
-        const synced = isConfigured() && !!getSavedPass();
-        const showDeleteBtn = canDeletePayment(p) && (!synced || idx === state.payments.length - 1);
-        return `
-        <div class="history-item">
-          <div class="hi-left">
-            <div class="hi-date">${thaiDate(p.date)}</div>
-            <div class="hi-meta">ดอกเบี้ย ${fmt(p.interest)} · เงินต้น ${fmt(p.principalPaid)}</div>
-          </div>
-          <div class="hi-right" style="display:flex; align-items:center;">
-            <div>
-              <div class="hi-amount">-${fmt(p.amount)} บาท</div>
-              <div class="hi-balance">คงเหลือ ${fmt(p.balanceAfter)}</div>
-            </div>
-            ${showDeleteBtn ? `<button class="delete-btn" onclick="event.stopPropagation(); deletePayment(${idx})">ลบ</button>` : ''}
-          </div>
-        </div>`;
-      }).join('');
-
-      return `
-      <div class="year-group ${isOpen?'open':''}">
-        <div class="year-head" onclick="toggleYear(${yr})">
-          <div class="yh-left">
-            <span class="yh-chevron">▶</span>
-            <span class="yh-year">ปี ${yr + 543}</span>
-            <span class="yh-count">${count} งวด</span>
-          </div>
-          <div class="yh-right">
-            <div class="yh-paid">${fmt(totalPaid,0)} บาท</div>
-            <div class="yh-endbal">คงเหลือสิ้นปี ${fmt(endBal,0)}</div>
-          </div>
-        </div>
-        <div class="year-body">${rows}</div>
-      </div>`;
-    }).join('');
-  }
+  const historyEntries=getFilteredHistoryEntries();
+  const historyHtml=buildHistoryResultsHtml(historyEntries);
 
   // แถบสถานะซิงค์ + ปุ่มนำเข้าข้อมูลเริ่มต้น (เฉพาะตอนเชื่อมระบบกลางไว้แล้ว)
   let syncBannerHtml = '';
@@ -1583,6 +1737,10 @@ function render(){
       </div>
     </section>
 
+    ${buildCurrentMonthCard(avgPayment)}
+
+    ${buildPrincipalInterestChart()}
+
     ${buildLatestAnnualInterestCard(annualInterestSummary)}
 
     ${buildRecentPayments()}
@@ -1603,7 +1761,8 @@ function render(){
     ${buildPaymentForm()}
 
     <div class="section-title">ประวัติการผ่อนชำระ</div>
-    <div class="history-list">${historyHtml}</div>
+    ${buildHistoryFilterCard(state.payments.length,historyEntries.length)}
+    <div class="history-list" id="history-results-root">${historyHtml}</div>
     </main>
 
     <main class="page-panel" data-page="settings" ${uiState.page==='settings'?'':'hidden'}>
@@ -1762,6 +1921,7 @@ async function handleReceiptFile(event){
   const isImage=file.type.startsWith('image/');
   const isPdf=file.type==='application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if(!isImage && !isPdf){ showToast('รองรับไฟล์ PDF, JPG, PNG และ WebP'); return; }
+  pendingReceiptFile=file;
 
   const btn = document.getElementById('receipt-upload-btn');
   if(btn){ btn.disabled = true; btn.textContent = 'กำลังอ่าน...'; }
@@ -1786,6 +1946,7 @@ async function handleReceiptFile(event){
     if(!parsed.ok) showReceiptDebug(rawText,isImage?'รูปภาพ':'PDF');
     showReceiptPreview(parsed);
   }catch(err){
+    pendingReceiptFile=null;
     showToast(err.message || (isImage?'อ่านรูปไม่สำเร็จ กรุณาถ่ายให้ตรงและตัวหนังสือชัด':'อ่าน PDF ไม่สำเร็จ กรุณาใช้ไฟล์ที่ปลดรหัสแล้ว'));
     console.error('Receipt parse error:', err);
   }finally{
@@ -1826,7 +1987,7 @@ function showReceiptPreview(parsed){
     cancelBtn.removeEventListener('click', onCancel);
     confirmBtn.removeEventListener('click', onConfirm);
   }
-  function onCancel(){ close(); pendingReceiptData = null; }
+  function onCancel(){ close(); pendingReceiptData = null; pendingReceiptFile=null; }
   function onConfirm(){ close(); confirmReceiptImport(); }
   cancelBtn.addEventListener('click', onCancel);
   confirmBtn.addEventListener('click', onConfirm);
@@ -1840,6 +2001,7 @@ async function confirmReceiptImport(){
   const balanceAfter = parseFloat(document.getElementById('rm-balance').value);
 
   if(!date || isNaN(principalPaid) || isNaN(amount) || isNaN(balanceAfter)){
+    pendingReceiptFile=null;
     showToast('กรุณากรอกข้อมูลให้ครบถ้วนก่อนยืนยัน');
     return;
   }
@@ -1847,6 +2009,7 @@ async function confirmReceiptImport(){
   // กันบันทึกซ้ำ: เช็ครายการที่มีวันที่และยอดคงเหลือตรงกันเป๊ะอยู่แล้วในระบบ
   const dup = state.payments.find(p => p.date === date && Math.abs(p.balanceAfter - balanceAfter) < 0.01);
   if(dup){
+    pendingReceiptFile=null;
     showToast('ดูเหมือนมีรายการวันนี้+ยอดนี้อยู่แล้ว — ไม่ได้บันทึกซ้ำ');
     return;
   }
@@ -1875,7 +2038,8 @@ async function confirmReceiptImport(){
       });
       const data = await res.json();
       if(!data.ok){
-        if(await handleServerConflict(data)) return;
+        if(await handleServerConflict(data)){ pendingReceiptFile=null; return; }
+        pendingReceiptFile=null;
         showToast(data.error || 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
         return;
       }
@@ -1885,6 +2049,7 @@ async function confirmReceiptImport(){
       syncStatus.error = null;
       syncStatus.lastSync = new Date();
     }catch(err){
+      pendingReceiptFile=null;
       showToast('ไม่มีอินเทอร์เน็ต บันทึกไม่สำเร็จ ลองใหม่เมื่อมีเน็ต');
       return;
     }
@@ -1895,9 +2060,20 @@ async function confirmReceiptImport(){
   recomputeFromPayments(state.payments); // จัดเรียงตามวันที่ใหม่ เผื่อใบเสร็จนี้เป็นรายการเก่าที่เติมช่องว่างย้อนหลัง
 
   await saveState();
+  let receiptSaved=false;
+  if(pendingReceiptFile){
+    try{
+      await storeReceiptForPayment(receiptKeyForPayment(newPayment),pendingReceiptFile);
+      receiptSaved=true;
+    }catch(error){
+      console.warn('Receipt archive save failed:',error);
+    }
+  }
   render();
   pendingReceiptData = null;
-  showToast(isConfigured() && pass ? 'นำเข้าจากใบเสร็จเรียบร้อย ✓ ซิงค์กับทุกคนแล้ว' : 'นำเข้าจากใบเสร็จเรียบร้อย ✓');
+  pendingReceiptFile=null;
+  const syncText=isConfigured()&&pass?' · ซิงค์รายการแล้ว':'';
+  showToast(`นำเข้าใบเสร็จเรียบร้อย ✓${receiptSaved?' · เก็บไฟล์ในเครื่องนี้':''}${syncText}`);
 }
 
 async function submitPayment(){
@@ -2123,6 +2299,7 @@ function setupAutoResync(){
 
 (async function init(){
   await loadState();
+  await loadReceiptAttachmentMeta();
   render();
   registerServiceWorker();
   setupPullToRefresh();

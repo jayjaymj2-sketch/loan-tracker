@@ -1039,6 +1039,38 @@ body{
 }
 
 .annual-interest-card{ padding:14px 16px; }
+.annual-interest-details > summary{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px 14px;
+  list-style:none;
+  cursor:pointer;
+}
+.annual-interest-details > summary::-webkit-details-marker{ display:none; }
+.annual-interest-details > summary > div{ min-width:0; }
+.annual-interest-details > summary > div:last-of-type{ text-align:right; }
+.annual-interest-details > summary span{
+  display:block;
+  font-size:calc(10px + var(--font-bump));
+  color:var(--ink-soft);
+}
+.annual-interest-details > summary strong{
+  display:block;
+  margin-top:3px;
+  font-family:'Chakra Petch',sans-serif;
+  font-size:calc(15px + var(--font-bump));
+  color:var(--gold-700);
+}
+.annual-interest-details > summary > small{
+  grid-column:1/-1;
+  padding-top:8px;
+  border-top:1px dashed rgba(180,150,80,0.18);
+  text-align:center;
+  font-size:calc(9.5px + var(--font-bump));
+  color:var(--ink-soft);
+}
+.annual-interest-details[open] > summary{ padding-bottom:12px; border-bottom:1px solid rgba(180,150,80,0.14); }
+.annual-interest-details[open] > summary > small::after{ content:' · แตะเพื่อพับเก็บ'; }
 .annual-interest-list{ display:flex; flex-direction:column; }
 .annual-interest-row,
 .annual-interest-total{
@@ -1056,6 +1088,42 @@ body{
 .annual-interest-total span{ font-family:'Chakra Petch',sans-serif; font-size:calc(14px + var(--font-bump)); font-weight:600; color:var(--navy-800); }
 .annual-interest-total strong{ font-family:'Chakra Petch',sans-serif; font-size:calc(18px + var(--font-bump)); color:var(--gold-700); }
 .payment-submit-row{ margin-top:12px; }
+.payment-form-details{ padding:0; overflow:hidden; }
+.payment-form-details > summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:15px 16px;
+  list-style:none;
+  cursor:pointer;
+}
+.payment-form-details > summary::-webkit-details-marker{ display:none; }
+.payment-form-details > summary strong{
+  display:block;
+  font-family:'Chakra Petch',sans-serif;
+  font-size:calc(14px + var(--font-bump));
+  color:var(--navy-800);
+}
+.payment-form-details > summary span{
+  display:block;
+  margin-top:3px;
+  font-size:calc(10px + var(--font-bump));
+  color:var(--ink-soft);
+}
+.payment-form-details > summary small{
+  flex:0 0 auto;
+  padding:6px 9px;
+  border-radius:8px;
+  background:var(--gold-100);
+  color:var(--gold-700);
+  font-size:calc(9.5px + var(--font-bump));
+  font-weight:600;
+}
+.payment-form-details[open] > summary{ border-bottom:1px solid rgba(180,150,80,0.14); }
+.payment-form-details[open] > summary small{ font-size:0; }
+.payment-form-details[open] > summary small::after{ content:'พับเก็บ'; font-size:calc(9.5px + var(--font-bump)); }
+.payment-form-body{ padding:16px; }
 
 .settings-card{ padding:18px 16px; margin-bottom:14px; }
 .settings-description{ margin-top:4px; font-size:calc(11.5px + var(--font-bump)); line-height:1.5; color:var(--ink-soft); }
@@ -1485,4 +1553,311 @@ body{
   .page-heading h2{ font-size:calc(20px + var(--font-bump)); }
   .settings-sync{ align-items:flex-start; }
   .recent-row{ align-items:flex-start; }
+}
+
+/* Overview: current month and 12-month principal/interest */
+.month-summary-card,
+.split-chart-card{
+  margin-top:16px;
+  padding:18px 16px;
+  background:var(--white);
+  border:1px solid rgba(180,150,80,0.18);
+  border-radius:16px;
+  box-shadow:0 2px 10px rgba(180,150,80,0.06);
+}
+.month-summary-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+}
+.month-summary-head h3,
+.split-chart-head h3{
+  font-family:'Chakra Petch',sans-serif;
+  font-size:calc(15px + var(--font-bump));
+  color:var(--navy-800);
+}
+.month-summary-head span{
+  display:block;
+  margin-top:2px;
+  font-size:calc(10.5px + var(--font-bump));
+  color:var(--ink-soft);
+}
+.month-summary-head > strong{
+  font-family:'Chakra Petch',sans-serif;
+  font-size:calc(25px + var(--font-bump));
+  line-height:1;
+  color:var(--gold-700);
+  text-align:right;
+}
+.month-summary-head > strong small{
+  font-family:'Sarabun',sans-serif;
+  font-size:calc(10px + var(--font-bump));
+  color:var(--ink-soft);
+}
+.month-summary-metrics{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  margin-top:17px;
+  border:1px solid rgba(180,150,80,0.15);
+  border-radius:12px;
+  overflow:hidden;
+}
+.month-summary-metrics > div{
+  padding:11px 7px;
+  background:#fffdfa;
+  text-align:center;
+}
+.month-summary-metrics > div + div{ border-left:1px solid rgba(180,150,80,0.14); }
+.month-summary-metrics span{
+  display:block;
+  font-size:calc(9.5px + var(--font-bump));
+  color:var(--ink-soft);
+}
+.month-summary-metrics strong{
+  display:block;
+  margin-top:3px;
+  font-family:'Chakra Petch',sans-serif;
+  font-size:calc(14px + var(--font-bump));
+  color:var(--navy-800);
+}
+.month-summary-card .month-progress{ margin-top:14px; }
+.month-summary-card .month-progress > div{
+  height:8px;
+  overflow:hidden;
+  border-radius:8px;
+  background:var(--paper);
+}
+.month-summary-card .month-progress > div span{
+  display:block;
+  height:100%;
+  border-radius:8px;
+  background:linear-gradient(90deg,var(--gold-600),var(--gold-300));
+}
+.month-summary-card .month-progress p{
+  margin-top:6px;
+  font-size:calc(10.5px + var(--font-bump));
+  color:var(--ink-soft);
+}
+.month-summary-card .month-progress p strong{ color:var(--gold-700); }
+.split-chart-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.split-chart-head > div{
+  display:flex;
+  gap:10px;
+  font-size:calc(9.5px + var(--font-bump));
+  color:var(--ink-soft);
+}
+.split-chart-head span{ display:inline-flex; align-items:center; gap:4px; }
+.split-chart-head i{ width:8px; height:8px; border-radius:50%; }
+.split-chart-head i.principal{ background:var(--navy-700); }
+.split-chart-head i.interest{ background:var(--gold-500); }
+.split-chart-plot{
+  display:grid;
+  grid-template-columns:repeat(12,minmax(13px,1fr));
+  align-items:end;
+  gap:5px;
+  height:168px;
+  margin-top:18px;
+  padding-top:8px;
+  border-bottom:1px solid rgba(10,22,40,0.12);
+}
+.split-chart-column{
+  display:grid;
+  grid-template-rows:128px auto;
+  gap:6px;
+  min-width:0;
+  height:100%;
+  text-align:center;
+}
+.split-chart-track{ display:flex; align-items:flex-end; justify-content:center; min-height:0; }
+.split-chart-stack{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  width:min(18px,88%);
+  min-height:2px;
+  overflow:hidden;
+  border-radius:5px 5px 2px 2px;
+  box-shadow:0 1px 4px rgba(10,22,40,0.1);
+}
+.split-chart-stack span{ display:block; width:100%; }
+.split-interest{ background:var(--gold-500); }
+.split-principal{ background:var(--navy-700); }
+.split-chart-column > span{
+  font-size:calc(8px + var(--font-bump));
+  line-height:1.05;
+  color:var(--ink-soft);
+  white-space:nowrap;
+}
+.split-chart-column small{ display:block; margin-top:2px; font-size:0.82em; opacity:0.72; }
+.split-chart-card > p{
+  margin-top:10px;
+  text-align:center;
+  font-size:calc(9.5px + var(--font-bump));
+  color:var(--ink-soft);
+}
+.interest-comparison{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1px;
+  margin-top:10px;
+  overflow:hidden;
+  border:1px solid rgba(180,150,80,0.14);
+  border-radius:11px;
+  background:rgba(180,150,80,0.14);
+}
+.interest-comparison > div{ padding:11px; background:#fffdfa; }
+.interest-comparison span{ display:block; font-size:calc(9.5px + var(--font-bump)); color:var(--ink-soft); }
+.interest-comparison strong{ display:block; margin-top:4px; font-size:calc(11px + var(--font-bump)); color:var(--navy-800); }
+.interest-comparison strong.good{ color:var(--green); }
+.interest-comparison strong.bad{ color:var(--red); }
+
+/* History search, filters and local receipt archive */
+.history-filter-card{
+  margin-bottom:12px;
+  padding:15px;
+  background:var(--white);
+  border:1px solid rgba(180,150,80,0.18);
+  border-radius:15px;
+  box-shadow:0 2px 10px rgba(180,150,80,0.05);
+}
+.history-filter-card label > span{
+  display:block;
+  margin-bottom:5px;
+  font-size:calc(10.5px + var(--font-bump));
+  font-weight:600;
+  color:var(--navy-800);
+}
+.history-filter-card input,
+.history-filter-card select{
+  width:100%;
+  min-height:42px;
+  padding:9px 11px;
+  border:1px solid rgba(180,150,80,0.28);
+  border-radius:10px;
+  background:#fffdfa;
+  color:var(--navy-800);
+  font:inherit;
+  font-size:calc(12px + var(--font-bump));
+}
+.history-filter-card input:focus,
+.history-filter-card select:focus{ outline:3px solid rgba(200,151,48,0.18); border-color:var(--gold-500); }
+.history-filter-controls{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+.history-filter-foot{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:11px;
+  padding-top:10px;
+  border-top:1px dashed rgba(180,150,80,0.22);
+  font-size:calc(9.5px + var(--font-bump));
+  color:var(--ink-soft);
+}
+.history-filter-foot strong{ color:var(--gold-700); }
+.history-item .hi-left{ min-width:0; }
+.history-item .hi-right{ display:flex; align-items:center; flex:0 0 auto; }
+.hi-actions{ display:flex; margin-top:6px; }
+.receipt-action{
+  border:1px solid rgba(180,150,80,0.24);
+  border-radius:8px;
+  padding:5px 8px;
+  background:var(--paper);
+  color:var(--ink-soft);
+  font-family:'Sarabun',sans-serif;
+  font-size:calc(9.5px + var(--font-bump));
+  font-weight:600;
+  cursor:pointer;
+}
+.receipt-action.attached{ border-color:rgba(200,151,48,0.38); background:var(--gold-100); color:var(--gold-700); }
+.receipt-viewer{ z-index:125; }
+.receipt-viewer-box{ max-width:520px; text-align:left; }
+.receipt-viewer-box .rm-title{
+  font-family:'Chakra Petch',sans-serif;
+  font-size:calc(17px + var(--font-bump));
+  font-weight:600;
+  color:var(--navy-800);
+}
+.receipt-viewer-box .rm-sub{ margin-top:3px; font-size:calc(10.5px + var(--font-bump)); color:var(--ink-soft); }
+.receipt-viewer-preview{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:210px;
+  max-height:58vh;
+  margin-top:14px;
+  overflow:auto;
+  border:1px solid rgba(180,150,80,0.18);
+  border-radius:12px;
+  background:var(--paper);
+}
+.receipt-viewer-preview img{ display:block; max-width:100%; max-height:56vh; object-fit:contain; }
+.receipt-pdf-preview{ display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--ink-soft); }
+.receipt-pdf-preview strong{
+  display:grid;
+  place-items:center;
+  width:72px;
+  height:88px;
+  border:2px solid var(--gold-500);
+  border-radius:9px;
+  font-family:'Chakra Petch',sans-serif;
+  font-size:21px;
+  color:var(--gold-700);
+  background:var(--gold-100);
+}
+.receipt-viewer-meta{ margin-top:9px; font-size:calc(10.5px + var(--font-bump)); color:var(--ink-soft); overflow-wrap:anywhere; }
+.receipt-viewer-actions{ display:flex; gap:8px; margin-top:15px; }
+.receipt-viewer-actions .btn{ flex:1; padding-left:8px; padding-right:8px; }
+.btn-danger-outline{ border:1px solid rgba(192,80,77,0.35); background:#fff8f7; color:var(--red); }
+
+/* App update stays visible without interrupting data entry */
+.app-update-banner{
+  position:fixed;
+  left:max(14px,env(safe-area-inset-left));
+  right:max(14px,env(safe-area-inset-right));
+  bottom:max(14px,env(safe-area-inset-bottom));
+  z-index:90;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  max-width:540px;
+  margin:0 auto;
+  padding:13px 14px;
+  border:1px solid rgba(227,185,74,0.44);
+  border-radius:14px;
+  background:var(--navy-800);
+  color:var(--white);
+  box-shadow:0 12px 36px rgba(10,22,40,0.32);
+}
+.app-update-banner strong{ display:block; font-family:'Chakra Petch',sans-serif; font-size:calc(13px + var(--font-bump)); color:var(--gold-300); }
+.app-update-banner span{ display:block; margin-top:2px; font-size:calc(9.5px + var(--font-bump)); color:rgba(255,255,255,0.72); }
+.app-update-banner > div:last-child{ display:flex; gap:6px; flex:0 0 auto; }
+.app-update-banner button{ border:0; border-radius:8px; padding:8px 10px; background:rgba(255,255,255,0.1); color:var(--white); font-family:'Sarabun',sans-serif; cursor:pointer; }
+.app-update-banner button.update-now{ background:var(--gold-500); font-weight:600; }
+
+@media(max-width:420px){
+  .split-chart-card{ padding-left:12px; padding-right:12px; }
+  .split-chart-plot{ gap:3px; }
+  .split-chart-head{ flex-direction:column; }
+  .history-filter-foot{ flex-direction:column; }
+  .history-item{ align-items:flex-start; gap:8px; }
+  .history-item .hi-right{ flex-direction:column; align-items:flex-end; }
+  .delete-btn{ margin:4px 0 0; }
+  .receipt-viewer-actions{ flex-direction:column; }
+  .app-update-banner{ align-items:flex-start; }
+  .app-update-banner > div:last-child{ flex-direction:column-reverse; }
+}
+
+@media(max-width:350px){
+  .month-summary-head{ flex-direction:column; }
+  .month-summary-head > strong{ text-align:left; }
+  .month-summary-metrics,
+  .interest-comparison,
+  .history-filter-controls{ grid-template-columns:1fr; }
+  .month-summary-metrics > div + div{ border-left:0; border-top:1px solid rgba(180,150,80,0.14); }
 }

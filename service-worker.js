@@ -2,13 +2,15 @@
 // หน้าที่: เก็บไฟล์หน้าแอพ (HTML/manifest/ไอคอน) ไว้ใช้ออฟไลน์ได้
 // ข้อมูลจริง (จาก Google Sheets/Apps Script) จะไม่ถูก cache เพราะต้องสดเสมอ
 
-const CACHE_NAME = 'loan-tracker-cache-v14'; // เพิ่มเลขนี้ทุกครั้งที่อัปเดตไฟล์ เพื่อบังคับเครื่องผู้ใช้ดึงเวอร์ชันใหม่
+const CACHE_NAME = 'loan-tracker-cache-v15'; // เพิ่มเลขนี้ทุกครั้งที่อัปเดตไฟล์ เพื่อบังคับเครื่องผู้ใช้ดึงเวอร์ชันใหม่
 const ASSETS = [
   './loan_tracker.html',
-  './styles.css?v=14',
-  './js/app.js?v=14',
+  './styles.css?v=15',
+  './js/app.js?v=15',
   './js/receipt-parser.js',
   './js/sync-version.js',
+  './js/loan-analytics.js?v=15',
+  './js/receipt-store.js?v=15',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -19,7 +21,10 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).catch(() => {})
   );
-  self.skipWaiting(); // ให้ service worker เวอร์ชันใหม่เข้าควบคุมทันที ไม่ต้องรอปิดแท็บ/แอพทั้งหมดก่อน
+});
+
+self.addEventListener('message',event=>{
+  if(event.data&&event.data.type==='SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {

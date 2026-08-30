@@ -15,14 +15,17 @@
 <link rel="icon" href="./icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./styles.css?v=14">
+<link rel="stylesheet" href="./styles.css?v=15">
 <!-- pdf.js: ใช้สำหรับอ่านข้อความจากไฟล์ PDF ใบเสร็จ (ทำงานในเบราว์เซอร์ ไม่ส่งไฟล์ขึ้นเซิร์ฟเวอร์ใดๆ) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="./js/receipt-parser.js"></script>
 <script src="./js/sync-version.js"></script>
+<script src="./js/loan-analytics.js?v=15"></script>
+<script src="./js/receipt-store.js?v=15"></script>
 </head>
 <body>
 <div id="gate-root"></div>
+<div id="update-root"></div>
 <div class="ptr-indicator" id="ptr-indicator"><span class="ptr-spinner"></span><span id="ptr-text">ปล่อยเพื่อรีเฟรช</span></div>
 <div class="wrap">
 
@@ -93,6 +96,20 @@
   </div>
 </div>
 
-<script src="./js/app.js?v=14"></script>
+<div class="confirm-overlay receipt-viewer" id="receipt-viewer-overlay">
+  <div class="confirm-box receipt-viewer-box">
+    <div class="rm-title" id="receipt-viewer-title">ใบเสร็จ</div>
+    <div class="rm-sub">ไฟล์นี้เก็บเฉพาะอุปกรณ์นี้และไม่ถูกส่งขึ้นระบบกลาง</div>
+    <div class="receipt-viewer-preview" id="receipt-viewer-preview"></div>
+    <div class="receipt-viewer-meta" id="receipt-viewer-meta"></div>
+    <div class="receipt-viewer-actions">
+      <button class="btn btn-secondary" id="receipt-viewer-open">เปิดไฟล์</button>
+      <button class="btn btn-danger-outline" id="receipt-viewer-delete">ลบไฟล์จากเครื่องนี้</button>
+      <button class="btn btn-primary" onclick="closeReceiptViewer()">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<script src="./js/app.js?v=15"></script>
 </body>
 </html>
