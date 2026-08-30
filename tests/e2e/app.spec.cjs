@@ -15,6 +15,8 @@ test('navigation, scenarios, settings and reconciliation render without overflow
   await page.locator('.category-tab').filter({hasText:'แผนปลดหนี้'}).click();
   await expect(page.getByText('วันหมดหนี้ 3 สถานการณ์')).toBeVisible();
   await expect(page.locator('.scenario-row')).toHaveCount(3);
+  const averagePayment=await page.evaluate(()=>Math.round(getMonthlyPaymentStats().average));
+  await expect(page.locator('#planner-payment-number')).toHaveValue(String(averagePayment));
   await page.locator('.category-tab').filter({hasText:'ตั้งค่า'}).click();
   await expect(page.getByText('อัตราดอกเบี้ยและ MRR')).toBeVisible();
   await expect(page.locator('#receipt-backup-title')).toBeVisible();
@@ -22,6 +24,7 @@ test('navigation, scenarios, settings and reconciliation render without overflow
   await page.getByRole('button',{name:/รายงานภาษีผู้กู้ร่วม/}).click();
   await expect(page.getByRole('heading',{name:'รายงานภาษีดอกเบี้ยบ้าน'})).toBeVisible();
   await expect(page.locator('.tax-borrower-row')).toHaveCount(3);
+  await expect(page.locator('.tax-borrower-row').nth(2)).toContainText('ลูก');
   await page.locator('.tax-year-row select').selectOption('2025');
   await expect(page.getByText('พร้อมใช้ประกอบการยื่น')).toBeVisible();
   await page.getByRole('button',{name:/กลับประวัติ/}).click();
@@ -32,6 +35,18 @@ test('navigation, scenarios, settings and reconciliation render without overflow
   await expect(page.locator('.reconcile-result')).toBeVisible();
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test('legacy planner value starts from the latest 12-month average and a new choice remains saved',async({page})=>{
+  await page.evaluate(()=>localStorage.setItem('lt_planner_prefs_v1',JSON.stringify({tab:'simulate',payment:65000,lumpSum:0,targetDate:''})));
+  await page.reload();
+  await expect(page.getByRole('heading',{name:'ภาพรวมสินเชื่อ'})).toBeVisible();
+  const averagePayment=await page.evaluate(()=>Math.round(getMonthlyPaymentStats().average));
+  await page.locator('.category-tab').filter({hasText:'แผนปลดหนี้'}).click();
+  await expect(page.locator('#planner-payment-number')).toHaveValue(String(averagePayment));
+  await page.locator('#planner-payment-number').fill('52000');
+  await page.reload();
+  await expect(page.locator('#planner-payment-number')).toHaveValue('52000');
 });
 
 test('history filtering and image receipt attachment work',async({page})=>{

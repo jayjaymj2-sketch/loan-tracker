@@ -1764,7 +1764,6 @@ body{
   .category-tab svg{ width:21px; height:21px; }
   .category-tab::after{ top:-6px; bottom:auto; left:24%; right:24%; border-radius:0 0 4px 4px; }
   .toast{ bottom:calc(82px + env(safe-area-inset-bottom,0px)); }
-  .app-update-banner{ bottom:calc(82px + env(safe-area-inset-bottom,0px)); }
   .scenario-row{ grid-template-columns:1fr 1.35fr; }
 }
 
@@ -1954,32 +1953,6 @@ body{
 .receipt-viewer-actions .btn{ flex:1; padding-left:8px; padding-right:8px; }
 .btn-danger-outline{ border:1px solid rgba(192,80,77,0.35); background:#fff8f7; color:var(--red); }
 
-/* App update stays visible without interrupting data entry */
-.app-update-banner{
-  position:fixed;
-  left:max(14px,env(safe-area-inset-left));
-  right:max(14px,env(safe-area-inset-right));
-  bottom:max(14px,env(safe-area-inset-bottom));
-  z-index:90;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:14px;
-  max-width:540px;
-  margin:0 auto;
-  padding:13px 14px;
-  border:1px solid rgba(227,185,74,0.44);
-  border-radius:14px;
-  background:var(--navy-800);
-  color:var(--white);
-  box-shadow:0 12px 36px rgba(10,22,40,0.32);
-}
-.app-update-banner strong{ display:block; font-family:'Chakra Petch',sans-serif; font-size:calc(13px + var(--font-bump)); color:var(--gold-300); }
-.app-update-banner span{ display:block; margin-top:2px; font-size:calc(9.5px + var(--font-bump)); color:rgba(255,255,255,0.72); }
-.app-update-banner > div:last-child{ display:flex; gap:6px; flex:0 0 auto; }
-.app-update-banner button{ border:0; border-radius:8px; padding:8px 10px; background:rgba(255,255,255,0.1); color:var(--white); font-family:'Sarabun',sans-serif; cursor:pointer; }
-.app-update-banner button.update-now{ background:var(--gold-500); font-weight:600; }
-
 @media(max-width:420px){
   .split-chart-card{ padding-left:12px; padding-right:12px; }
   .split-chart-plot{ gap:3px; }
@@ -1989,8 +1962,6 @@ body{
   .history-item .hi-right{ flex-direction:column; align-items:flex-end; }
   .delete-btn{ margin:4px 0 0; }
   .receipt-viewer-actions{ flex-direction:column; }
-  .app-update-banner{ align-items:flex-start; }
-  .app-update-banner > div:last-child{ flex-direction:column-reverse; }
 }
 
 @media(max-width:350px){

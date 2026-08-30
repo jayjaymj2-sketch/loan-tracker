@@ -107,7 +107,7 @@ const ANNUAL_INTEREST_HISTORY = [
 const LAST_CERTIFIED_INTEREST_YEAR = Math.max(...ANNUAL_INTEREST_HISTORY.map(y => y.year));
 
 const PAYERS = {
-  me:  { label: 'ฉัน',  short: 'ฉัน',  color: '#e8cd7a' },
+  me:  { label: 'ลูก',  short: 'ลูก',  color: '#e8cd7a' },
   mom: { label: 'แม่',   short: 'แม่',  color: '#7fb3d5' },
   dad: { label: 'พ่อ',   short: 'พ่อ',  color: '#a3d9a5' }
 };
@@ -120,7 +120,7 @@ const BACKUP_HISTORY_KEY = 'lt_backup_history_v1';
 const UI_PREFS_KEY = 'lt_ui_prefs_v1';
 const REMINDER_PREFS_KEY = 'lt_reminder_prefs_v1';
 const RECONCILIATION_KEY = 'lt_reconciliation_history_v1';
-let plannerState = { tab:'simulate', payment:null, lumpSum:0, targetDate:'' };
+let plannerState = { tab:'simulate', payment:null, paymentCustomized:false, lumpSum:0, targetDate:'' };
 let uiState = { page:'overview', fontSize:'normal', historyMode:'list' };
 let reminderPrefs = { dueEnabled:true, dueDay:26, goalEnabled:true, lastNotified:'' };
 let historyFilters = { query:'', year:'all', type:'all' };
@@ -132,10 +132,16 @@ let pendingReceiptFile = null;
 let pendingReceiptTargetId = null;
 let currentReceiptViewer = null;
 let currentReceiptObjectUrl = '';
-let appUpdateRegistration = null;
 try{
   const savedPlanner = JSON.parse(localStorage.getItem(PLANNER_PREFS_KEY) || 'null');
-  if(savedPlanner && typeof savedPlanner === 'object') plannerState = Object.assign(plannerState, savedPlanner);
+  if(savedPlanner && typeof savedPlanner === 'object'){
+    plannerState = Object.assign(plannerState, savedPlanner);
+    // ค่าที่บันทึกจากเวอร์ชันเดิมยังไม่มีสถานะนี้ ให้เริ่มจากค่าเฉลี่ย 12 เดือนล่าสุด
+    if(savedPlanner.paymentCustomized !== true){
+      plannerState.payment = null;
+      plannerState.paymentCustomized = false;
+    }
+  }
 }catch(e){}
 try{
   const savedUi = JSON.parse(localStorage.getItem(UI_PREFS_KEY) || 'null');
@@ -585,34 +591,16 @@ function registerServiceWorker(){
   });
 
   navigator.serviceWorker.register('./service-worker.js').then((reg) => {
-    appUpdateRegistration=reg;
-    if(reg.waiting&&navigator.serviceWorker.controller) showAppUpdateBanner();
+    if(reg.waiting&&navigator.serviceWorker.controller) reg.waiting.postMessage({type:'SKIP_WAITING'});
     reg.addEventListener('updatefound',()=>{
       const worker=reg.installing;
       if(!worker) return;
       worker.addEventListener('statechange',()=>{
-        if(worker.state==='installed'&&navigator.serviceWorker.controller) showAppUpdateBanner();
+        if(worker.state==='installed'&&navigator.serviceWorker.controller) worker.postMessage({type:'SKIP_WAITING'});
       });
     });
     reg.update().catch(()=>{});
   }).catch(()=>{});
-}
-
-function showAppUpdateBanner(){
-  const root=document.getElementById('update-root');
-  if(!root) return;
-  root.innerHTML=`<div class="app-update-banner" role="status"><div><strong>มีแอปเวอร์ชันใหม่</strong><span>อัปเดตเพื่อรับฟีเจอร์และการแก้ไขล่าสุด</span></div><div><button onclick="dismissAppUpdate()">ภายหลัง</button><button class="update-now" onclick="applyAppUpdate()">อัปเดตตอนนี้</button></div></div>`;
-}
-
-function dismissAppUpdate(){
-  const root=document.getElementById('update-root');
-  if(root) root.innerHTML='';
-}
-
-function applyAppUpdate(){
-  const waiting=appUpdateRegistration&&appUpdateRegistration.waiting;
-  if(waiting) waiting.postMessage({type:'SKIP_WAITING'});
-  else window.location.reload();
 }
 
 
@@ -697,8 +685,9 @@ function savePlannerPrefs(){
 }
 
 function ensurePlannerDefaults(avgPayment, baselineProjection){
-  if(!Number.isFinite(Number(plannerState.payment)) || Number(plannerState.payment) <= 0){
+  if(!plannerState.paymentCustomized || !Number.isFinite(Number(plannerState.payment)) || Number(plannerState.payment) <= 0){
     plannerState.payment = Math.round(avgPayment);
+    plannerState.paymentCustomized = false;
   }
   plannerState.lumpSum = Math.max(0, Number(plannerState.lumpSum) || 0);
   if(!/^\d{4}-\d{2}-\d{2}$/.test(plannerState.targetDate || '')){
@@ -876,6 +865,7 @@ function setPlannerTab(tab){
 function updatePlannerPayment(value){
   const payment=Math.max(0,Number(value)||0);
   plannerState.payment=payment;
+  plannerState.paymentCustomized=true;
   const numberInput=document.getElementById('planner-payment-number');
   const slider=document.getElementById('planner-payment-slider');
   if(numberInput && document.activeElement!==numberInput) numberInput.value=payment;
@@ -1720,7 +1710,7 @@ function buildReconciliationPage(){
   return `${buildPageHeading('กระทบยอดกับธนาคาร','เปรียบเทียบเงินต้นคงเหลือในแอปกับใบแจ้งยอด SCB')}<button class="back-link" onclick="closeReconciliation()">← กลับประวัติ</button><section class="reconcile-card"><div class="reconcile-form"><label><span>วันที่ในใบแจ้งยอด</span><input id="reconcile-date" type="date" value="${result?result.date:todayStr()}"></label><label><span>เงินต้นคงเหลือจาก SCB (บาท)</span><input id="reconcile-balance" type="number" inputmode="decimal" placeholder="เช่น 1,768,117.00" value="${result?result.bankBalance:''}"></label><button class="btn btn-primary" onclick="runReconciliation()">ตรวจสอบยอด</button></div>${resultHtml}<p class="reconcile-note">การบันทึกจุดอ้างอิงไม่แก้ประวัติการผ่อนหรือยอดในระบบกลางโดยอัตโนมัติ</p></section>`;
 }
 
-const TAX_BORROWERS=['พ่อ','แม่','ฉัน'];
+const TAX_BORROWERS=['พ่อ','แม่','ลูก'];
 const HOME_INTEREST_TAX_CAP=100000;
 
 function openTaxReport(){
@@ -1754,7 +1744,7 @@ function buildTaxReportPage(annual){
   if(!report) return `${buildPageHeading('รายงานภาษีดอกเบี้ยบ้าน','สำหรับผู้กู้ร่วม 3 คน')}<button class="back-link" onclick="closeTaxReport()">← กลับประวัติ</button><div class="history-empty">ยังไม่มีข้อมูลดอกเบี้ยสำหรับทำรายงาน</div>`;
   const yearOptions=annual.slice().reverse().map(item=>`<option value="${item.year}" ${item.year===report.year?'selected':''}>ปี ${item.year+543}</option>`).join('');
   const statusText=report.certified?'ยอดปีนี้อ้างอิงหนังสือรับรองดอกเบี้ยจากธนาคาร':`ยอดระหว่างปีจากรายการชำระจริง${report.lastPaymentDate?` · ถึง ${thaiDate(report.lastPaymentDate)}`:''}`;
-  return `${buildPageHeading('รายงานภาษีดอกเบี้ยบ้าน','แบ่งสิทธิลดหย่อนสำหรับพ่อ แม่ และฉัน')}<button class="back-link" onclick="closeTaxReport()">← กลับประวัติ</button><section class="tax-report-card"><div class="tax-year-row"><label><span>เลือกปีภาษี</span><select onchange="setTaxReportYear(this.value)">${yearOptions}</select></label><div class="tax-status ${report.certified?'certified':'provisional'}"><strong>${report.certified?'พร้อมใช้ประกอบการยื่น':'ยอดชั่วคราว'}</strong><span>${statusText}</span></div></div><div class="tax-total"><span>ดอกเบี้ยจ่ายทั้งหมด ปี ${report.year+543}</span><strong>${fmt(report.interestTotal,2)} <small>บาท</small></strong><div><span>ยอดรวมที่ใช้สิทธิได้</span><b>${fmt(report.eligibleTotal,2)} บาท</b></div>${report.overCap>0?`<p>ส่วนที่เกินเพดานรวม 100,000 บาท: ${fmt(report.overCap,2)} บาท</p>`:''}</div><div class="tax-split-head"><h3>แบ่งสิทธิผู้กู้ร่วม 3 คน</h3><span>เฉลี่ยเท่ากัน</span></div><div class="tax-borrower-list">${report.borrowers.map((person,index)=>`<div class="tax-borrower-row"><span class="tax-person-index">${index+1}</span><div><strong>${person.name}</strong><small>ผู้กู้ร่วม · 1 ใน 3 ส่วน</small></div><b>${fmt(person.amount,2)} บาท</b></div>`).join('')}</div><div class="tax-rule-note"><strong>หลักเกณฑ์ที่ใช้คำนวณ</strong><p>ผู้กู้ร่วมเฉลี่ยสิทธิตามจำนวนคน ทั้ง 3 คนรวมกันไม่เกินดอกเบี้ยที่จ่ายจริงและไม่เกิน 100,000 บาท</p><a href="https://www.rd.go.th/60060.html" target="_blank" rel="noopener">ดูหลักเกณฑ์กรมสรรพากร</a></div><div class="tax-report-actions"><button class="btn btn-primary" onclick="printTaxReport()">พิมพ์ / บันทึก PDF</button><button class="btn btn-secondary" onclick="exportTaxReportCSV()">ส่งออก CSV</button></div><p class="tax-source">ที่มาของยอด: ${escapeHtml(report.source)}${report.certified?'':' · ตรวจเทียบหนังสือรับรอง SCB ก่อนยื่นจริง'}</p></section>`;
+  return `${buildPageHeading('รายงานภาษีดอกเบี้ยบ้าน','แบ่งสิทธิลดหย่อนสำหรับพ่อ แม่ และลูก')}<button class="back-link" onclick="closeTaxReport()">← กลับประวัติ</button><section class="tax-report-card"><div class="tax-year-row"><label><span>เลือกปีภาษี</span><select onchange="setTaxReportYear(this.value)">${yearOptions}</select></label><div class="tax-status ${report.certified?'certified':'provisional'}"><strong>${report.certified?'พร้อมใช้ประกอบการยื่น':'ยอดชั่วคราว'}</strong><span>${statusText}</span></div></div><div class="tax-total"><span>ดอกเบี้ยจ่ายทั้งหมด ปี ${report.year+543}</span><strong>${fmt(report.interestTotal,2)} <small>บาท</small></strong><div><span>ยอดรวมที่ใช้สิทธิได้</span><b>${fmt(report.eligibleTotal,2)} บาท</b></div>${report.overCap>0?`<p>ส่วนที่เกินเพดานรวม 100,000 บาท: ${fmt(report.overCap,2)} บาท</p>`:''}</div><div class="tax-split-head"><h3>แบ่งสิทธิผู้กู้ร่วม 3 คน</h3><span>เฉลี่ยเท่ากัน</span></div><div class="tax-borrower-list">${report.borrowers.map((person,index)=>`<div class="tax-borrower-row"><span class="tax-person-index">${index+1}</span><div><strong>${person.name}</strong><small>ผู้กู้ร่วม · 1 ใน 3 ส่วน</small></div><b>${fmt(person.amount,2)} บาท</b></div>`).join('')}</div><div class="tax-rule-note"><strong>หลักเกณฑ์ที่ใช้คำนวณ</strong><p>ผู้กู้ร่วมเฉลี่ยสิทธิตามจำนวนคน ทั้ง 3 คนรวมกันไม่เกินดอกเบี้ยที่จ่ายจริงและไม่เกิน 100,000 บาท</p><a href="https://www.rd.go.th/60060.html" target="_blank" rel="noopener">ดูหลักเกณฑ์กรมสรรพากร</a></div><div class="tax-report-actions"><button class="btn btn-primary" onclick="printTaxReport()">พิมพ์ / บันทึก PDF</button><button class="btn btn-secondary" onclick="exportTaxReportCSV()">ส่งออก CSV</button></div><p class="tax-source">ที่มาของยอด: ${escapeHtml(report.source)}${report.certified?'':' · ตรวจเทียบหนังสือรับรอง SCB ก่อนยื่นจริง'}</p></section>`;
 }
 
 function buildSettingsPage(balance,avgPayment,lifetimeInterestTotal){
@@ -1938,7 +1928,7 @@ function render(){
     <main class="page-panel" data-page="history" ${uiState.page==='history'?'':'hidden'}>
     ${uiState.historyMode==='reconcile'?buildReconciliationPage():uiState.historyMode==='tax'?buildTaxReportPage(annualInterestSummary):`${buildPageHeading('ประวัติและการชำระ','ตรวจดอกเบี้ยรายปี เพิ่มรายการ และดูประวัติย้อนหลัง')}
 
-    <div class="history-tool-list"><button class="reconcile-entry tax-entry" onclick="openTaxReport()"><span><strong>รายงานภาษีผู้กู้ร่วม</strong><small>แบ่งสิทธิให้พ่อ แม่ และฉัน</small></span><b>เปิดรายงาน →</b></button><button class="reconcile-entry" onclick="openReconciliation()"><span><strong>กระทบยอดกับธนาคาร</strong><small>เทียบยอดเงินต้นในแอปกับใบแจ้งยอด SCB</small></span><b>ตรวจสอบยอด →</b></button></div>
+    <div class="history-tool-list"><button class="reconcile-entry tax-entry" onclick="openTaxReport()"><span><strong>รายงานภาษีผู้กู้ร่วม</strong><small>แบ่งสิทธิให้พ่อ แม่ และลูก</small></span><b>เปิดรายงาน →</b></button><button class="reconcile-entry" onclick="openReconciliation()"><span><strong>กระทบยอดกับธนาคาร</strong><small>เทียบยอดเงินต้นในแอปกับใบแจ้งยอด SCB</small></span><b>ตรวจสอบยอด →</b></button></div>
 
     ${buildAnnualInterestCard(annualInterestSummary,lifetimeInterestTotal,lifetimeInterestAsOf)}
 
