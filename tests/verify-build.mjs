@@ -29,8 +29,8 @@ assert.ok(app.includes("LoanAnalytics.summarizePreviousMonth"), 'monthly summary
 assert.ok(app.includes("buildPrincipalInterestChart"), 'overview must show the 12-month principal/interest chart');
 assert.ok(app.includes("selectPrincipalInterestMonth"), 'principal/interest chart bars must open monthly details');
 assert.ok(app.includes("buildHistoryFilterCard"), 'history must provide search and filters');
-assert.ok(html.includes("./js/app.js?v=21"), 'HTML must request the updated app bundle without stale browser cache');
-assert.ok(worker.includes("loan-tracker-cache-v21"), 'service worker cache must be bumped for the feature update');
+assert.ok(html.includes("./js/app.js?v=22"), 'HTML must request the updated app bundle without stale browser cache');
+assert.ok(worker.includes("loan-tracker-cache-v22"), 'service worker cache must be bumped for the feature update');
 assert.ok(worker.includes('self.skipWaiting()'), 'service worker updates must activate automatically');
 assert.ok(!app.includes('showAppUpdateBanner'), 'app updates must not require an update-confirmation banner');
 assert.ok(app.includes('ReceiptStore'), 'app must support local receipt attachment storage');

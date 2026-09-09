@@ -1385,8 +1385,9 @@ function buildPrincipalInterestChart(){
   const selectedRow=series.find(row=>row.key===selectedPrincipalInterestMonth)||series[series.length-1];
   const bars=series.map(row=>{
     const totalHeight=row.amount/maxAmount*100;
-    const interestPct=row.amount>0?row.interest/row.amount*100:0;
-    const principalPct=row.amount>0?row.principal/row.amount*100:0;
+    const componentTotal=row.principal+row.interest;
+    const interestPct=componentTotal>0?row.interest/componentTotal*100:0;
+    const principalPct=componentTotal>0?row.principal/componentTotal*100:0;
     const [year]=row.key.split('-').map(Number);
     const month=thaiMonthYear(row.key).split(' ')[0];
     const selected=row.key===selectedRow.key;
@@ -1398,7 +1399,9 @@ function buildPrincipalInterestChart(){
 
 function buildPrincipalInterestDetail(row){
   const empty=row.amount<=0;
-  return `<div class="split-chart-detail ${empty?'empty':''}" id="principal-interest-detail" data-month="${row.key}" aria-live="polite"><div class="split-detail-head"><div><span>รายละเอียดเดือนที่เลือก</span><strong>${thaiMonthYear(row.key)}</strong></div><div><span>ยอดชำระรวม</span><strong>${fmt(row.amount,0)} <small>บาท</small></strong></div></div><div class="split-detail-metrics"><div><span><i class="principal"></i>เงินต้น</span><strong>${fmt(row.principal,0)} บาท</strong></div><div><span><i class="interest"></i>ดอกเบี้ย</span><strong>${fmt(row.interest,0)} บาท</strong></div><div><span>รายการชำระ</span><strong>${row.count} ครั้ง</strong></div></div>${empty?'<p>เดือนนี้ยังไม่มีรายการชำระ</p>':''}</div>`;
+  const componentDifference=row.amount-(row.principal+row.interest);
+  const differenceNote=Math.abs(componentDifference)>0.5?`<p class="split-detail-warning">ข้อมูลเดิมแยกเงินต้นและดอกเบี้ยรวม${componentDifference>0?'ต่ำกว่า':'สูงกว่า'}ยอดชำระ ${fmt(Math.abs(componentDifference),2)} บาท · ความสูงแท่งยังยึดยอดชำระจริง</p>`:'';
+  return `<div class="split-chart-detail ${empty?'empty':''}" id="principal-interest-detail" data-month="${row.key}" aria-live="polite"><div class="split-detail-head"><div><span>รายละเอียดเดือนที่เลือก</span><strong>${thaiMonthYear(row.key)}</strong></div><div><span>ยอดชำระรวม</span><strong>${fmt(row.amount,0)} <small>บาท</small></strong></div></div><div class="split-detail-metrics"><div><span><i class="principal"></i>เงินต้น</span><strong>${fmt(row.principal,0)} บาท</strong></div><div><span><i class="interest"></i>ดอกเบี้ย</span><strong>${fmt(row.interest,0)} บาท</strong></div><div><span>รายการชำระ</span><strong>${row.count} ครั้ง</strong></div></div>${empty?'<p>เดือนนี้ยังไม่มีรายการชำระ</p>':differenceNote}</div>`;
 }
 
 function selectPrincipalInterestMonth(monthKey){

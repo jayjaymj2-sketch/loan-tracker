@@ -63,6 +63,12 @@ test('principal and interest chart opens details for paid and empty months',asyn
   await expect(chart.locator('.split-detail-metrics')).toContainText('เงินต้น');
   await expect(chart.locator('.split-detail-metrics')).toContainText('ดอกเบี้ย');
 
+  const novemberBar=chart.locator('.split-chart-column[data-month="2025-11"]');
+  await novemberBar.click();
+  const novemberSplitTotal=await novemberBar.locator('.split-chart-stack > span').evaluateAll(parts=>parts.reduce((sum,part)=>sum+parseFloat(part.style.height||'0'),0));
+  expect(novemberSplitTotal).toBeCloseTo(100,5);
+  await expect(chart.locator('#principal-interest-detail')).toContainText('ข้อมูลเดิมแยกเงินต้นและดอกเบี้ยรวมต่ำกว่ายอดชำระ');
+
   const emptyBar=chart.locator('.split-chart-column[data-amount="0"]').last();
   const emptyMonth=await emptyBar.getAttribute('data-month');
   await emptyBar.click();

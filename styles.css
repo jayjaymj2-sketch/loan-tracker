@@ -1823,7 +1823,7 @@ body{
 }
 .split-chart-column:hover{ background:rgba(180,150,80,.08); }
 .split-chart-column:focus-visible{ outline:3px solid rgba(200,151,48,.42); outline-offset:2px; }
-.split-chart-column.selected{ background:rgba(200,151,48,.12); box-shadow:inset 0 0 0 1px rgba(180,150,80,.2); }
+.split-chart-column.selected > span:last-child{ border-radius:5px; background:var(--gold-100); color:var(--navy-800); font-weight:700; }
 .split-chart-track{ display:flex; align-items:flex-end; justify-content:center; min-height:0; }
 .split-chart-stack{
   display:flex;
@@ -1884,6 +1884,7 @@ body{
 .split-detail-metrics i.interest{ background:var(--gold-500); }
 .split-detail-metrics strong{ display:block; margin-top:3px; font:600 calc(11px + var(--font-bump)) 'Chakra Petch',sans-serif; color:var(--navy-800); white-space:nowrap; }
 .split-chart-detail > p{ padding:0 12px 11px; text-align:center; font-size:calc(9.5px + var(--font-bump)); color:var(--ink-soft); }
+.split-chart-detail > p.split-detail-warning{ padding:9px 12px 10px; border-top:1px solid rgba(200,151,48,.18); background:#fff8e8; color:#80601e; line-height:1.45; }
 .split-chart-detail.empty .split-detail-metrics{ opacity:.65; }
 .interest-comparison{
   display:grid;
