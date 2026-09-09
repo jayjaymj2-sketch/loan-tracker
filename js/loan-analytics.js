@@ -59,6 +59,11 @@
     return Object.assign({},row,{paid:row.amount,goal:target,pct,remaining:Math.max(target-row.amount,0),goalMet:target>0&&row.amount>=target});
   }
 
+  function summarizePreviousMonth(payments,referenceDate,goal){
+    const previousMonth=monthKeyOffset(referenceDate,-1);
+    return summarizeMonth(payments,`${previousMonth}-01`,goal);
+  }
+
   function buildAnnualInterestSummary(certifiedHistory,payments,lastCertifiedYear,formatDate){
     const formatter=typeof formatDate==='function'?formatDate:(value=>value);
     const summary=(Array.isArray(certifiedHistory)?certifiedHistory:[]).map(item=>Object.assign({},item,{certified:true}));
@@ -224,5 +229,5 @@
     };
   }
 
-  return {orderPaymentEntries,buildMonthlySeries,getMonthlyPaymentStats,summarizeMonth,buildAnnualInterestSummary,compareInterestYTD,filterPaymentEntries,projectPayoffFixedRate,projectPayoffSchedule,buildPayoffScenarios,evaluateMonthlyReminder,reconcileBalance,buildJointBorrowerTaxReport};
+  return {orderPaymentEntries,buildMonthlySeries,getMonthlyPaymentStats,summarizeMonth,summarizePreviousMonth,buildAnnualInterestSummary,compareInterestYTD,filterPaymentEntries,projectPayoffFixedRate,projectPayoffSchedule,buildPayoffScenarios,evaluateMonthlyReminder,reconcileBalance,buildJointBorrowerTaxReport};
 });

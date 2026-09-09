@@ -850,8 +850,8 @@ function analyzeDataQuality(){
   return { issues:[...new Set(issues)], zeroInterestCount };
 }
 
-function getCurrentMonthSummary(avgPayment){
-  return LoanAnalytics.summarizeMonth(state.payments,todayStr(),avgPayment);
+function getPreviousMonthSummary(avgPayment){
+  return LoanAnalytics.summarizePreviousMonth(state.payments,todayStr(),avgPayment);
 }
 
 function setPlannerTab(tab){
@@ -999,7 +999,7 @@ function buildPlannerHub(balance,avgPayment,avgBasisMonths,lifetimeInterestTotal
   const targetMonths=monthsUntilDate(plannerState.targetDate);
   const requiredPayment=requiredPaymentForMonths(balance,targetMonths);
   const paymentDifference=requiredPayment==null?null:requiredPayment-avgPayment;
-  const month=getCurrentMonthSummary(avgPayment);
+  const month=getPreviousMonthSummary(avgPayment);
   const quality=analyzeDataQuality();
   const history=getBackupHistory();
   const latestBackup=history[0];
@@ -1038,9 +1038,9 @@ function buildPlannerHub(balance,avgPayment,avgBasisMonths,lifetimeInterestTotal
       <div class="planner-heading">ตั้งเป้าหมายวันปลดหนี้</div>
       <div class="planner-field"><div class="planner-field-head"><span>อยากปิดหนี้ภายในวันที่</span><strong>${thaiDate(plannerState.targetDate)}</strong></div><div class="planner-input-wrap"><input type="date" min="${todayStr()}" value="${plannerState.targetDate}" onchange="updatePlannerTarget(this.value)"></div></div>
       <div class="target-result"><span>ต้องผ่อนอย่างน้อย</span><strong>${requiredPayment==null?'—':fmt(requiredPayment,0)+' บาท/เดือน'}</strong><span>${targetDescription}</span></div>
-      <div class="planner-heading" style="margin-bottom:8px;">สรุปเดือนนี้</div>
+      <div class="planner-heading" style="margin-bottom:8px;">สรุปเดือนที่แล้ว · ${thaiMonthYear(month.key)}</div>
       <div class="month-summary"><div><strong>${fmt(month.paid,0)}</strong><span>ยอดชำระทั้งหมด</span></div><div><strong>${fmt(month.principal,0)}</strong><span>ตัดเงินต้น</span></div><div><strong>${fmt(month.interest,0)}</strong><span>ดอกเบี้ย</span></div></div>
-      <div class="month-progress"><div class="month-progress-head"><span>${month.goalMet?'ถึงเป้าหมายเดือนนี้แล้ว':'ความคืบหน้าเทียบค่าเฉลี่ย'}</span><strong>${month.pct.toFixed(0)}%</strong></div><div class="month-progress-track"><div class="month-progress-fill" style="width:${month.pct}%"></div></div></div>
+      <div class="month-progress"><div class="month-progress-head"><span>${month.goalMet?'ถึงค่าเฉลี่ยแล้ว':'เทียบกับค่าเฉลี่ย 12 เดือน'}</span><strong>${month.pct.toFixed(0)}%</strong></div><div class="month-progress-track"><div class="month-progress-fill" style="width:${month.pct}%"></div></div></div>
       <div class="planner-note">เป้าหมายรายเดือนอ้างอิงยอดผ่อนเฉลี่ย ${fmt(avgPayment,0)} บาท (${avgBasisMonths} เดือนล่าสุด)</div>
     </div>`;
   }else{
@@ -1357,10 +1357,11 @@ function thaiMonthYear(monthKey){
   return `${names[Math.max(0,month-1)]} ${year+543}`;
 }
 
-function buildCurrentMonthCard(avgPayment){
-  const summary=getCurrentMonthSummary(avgPayment);
-  const status=summary.goalMet?'ถึงค่าเฉลี่ยแล้ว':`เหลืออีก ${fmt(summary.remaining,0)} บาทถึงค่าเฉลี่ย`;
-  return `<section class="month-summary-card" aria-label="สรุปเดือนนี้"><div class="month-summary-head"><div><h3>สรุปเดือนนี้</h3><span>${thaiMonthYear(summary.key)}</span></div><strong>${fmt(summary.paid,0)} <small>บาท</small></strong></div><div class="month-summary-metrics"><div><span>เงินต้น</span><strong>${fmt(summary.principal,0)}</strong></div><div><span>ดอกเบี้ย</span><strong>${fmt(summary.interest,0)}</strong></div><div><span>เป้าหมายเฉลี่ย</span><strong>${fmt(avgPayment,0)}</strong></div></div><div class="month-progress"><div><span style="width:${summary.pct}%"></span></div><p><strong>${Math.round(summary.pct)}%</strong> ของค่าเฉลี่ย 12 เดือน · ${status}</p></div></section>`;
+function buildPreviousMonthCard(avgPayment){
+  const summary=getPreviousMonthSummary(avgPayment);
+  const difference=summary.paid-avgPayment;
+  const status=Math.abs(difference)<0.5?'เท่ากับค่าเฉลี่ย':difference>0?`สูงกว่าค่าเฉลี่ย ${fmt(difference,0)} บาท`:`ต่ำกว่าค่าเฉลี่ย ${fmt(Math.abs(difference),0)} บาท`;
+  return `<section class="month-summary-card" aria-label="สรุปเดือนที่แล้ว"><div class="month-summary-head"><div><h3>สรุปเดือนที่แล้ว</h3><span>${thaiMonthYear(summary.key)}</span></div><strong>${fmt(summary.paid,0)} <small>บาท</small></strong></div><div class="month-summary-metrics"><div><span>เงินต้น</span><strong>${fmt(summary.principal,0)}</strong></div><div><span>ดอกเบี้ย</span><strong>${fmt(summary.interest,0)}</strong></div><div><span>ค่าเฉลี่ย 12 เดือน</span><strong>${fmt(avgPayment,0)}</strong></div></div><div class="month-progress"><div><span style="width:${summary.pct}%"></span></div><p><strong>${Math.round(summary.pct)}%</strong> ของค่าเฉลี่ย 12 เดือน · ${status}</p></div></section>`;
 }
 
 function buildPrincipalInterestChart(){
@@ -1908,7 +1909,7 @@ function render(){
       </div>
     </section>
 
-    ${buildCurrentMonthCard(avgPayment)}
+    ${buildPreviousMonthCard(avgPayment)}
 
     ${buildPrincipalInterestChart()}
 

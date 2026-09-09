@@ -24,6 +24,21 @@ test('monthly summary combines multiple payments in the same month', () => {
   assert.ok(summary.pct > 72 && summary.pct < 73);
 });
 
+test('previous-month summary uses the last completed calendar month', () => {
+  const summary = Analytics.summarizePreviousMonth(payments, '2026-09-09', 48417);
+  assert.equal(summary.key, '2026-08');
+  assert.equal(summary.paid, 35000);
+  assert.equal(summary.principal, 31500);
+  assert.equal(summary.interest, 3500);
+});
+
+test('previous-month summary crosses the year boundary', () => {
+  const summary = Analytics.summarizePreviousMonth([{date:'2026-12-26',amount:40000,principalPaid:36000,interest:4000}], '2027-01-09', 40000);
+  assert.equal(summary.key, '2026-12');
+  assert.equal(summary.paid, 40000);
+  assert.equal(summary.goalMet, true);
+});
+
 test('twelve-month series includes empty calendar months in order', () => {
   const series = Analytics.buildMonthlySeries(payments, '2026-08-30', 12);
   assert.equal(series.length, 12);

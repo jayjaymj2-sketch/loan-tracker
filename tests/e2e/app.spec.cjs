@@ -5,6 +5,8 @@ test.beforeEach(async({page})=>{
   await page.goto('/loan_tracker.html?qa=1');
   await expect(page.getByRole('heading',{name:'ภาพรวมสินเชื่อ'})).toBeVisible();
   await expect(page.locator('.reminder-banner')).toHaveCount(0);
+  await expect(page.getByRole('region',{name:'สรุปเดือนที่แล้ว'})).toBeVisible();
+  await expect(page.getByRole('region',{name:'สรุปเดือนนี้'})).toHaveCount(0);
 });
 
 test('navigation, scenarios, settings and reconciliation render without overflow',async({page},testInfo)=>{
