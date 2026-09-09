@@ -17,8 +17,16 @@ test('navigation, scenarios, settings and reconciliation render without overflow
   await page.locator('.category-tab').filter({hasText:'แผนปลดหนี้'}).click();
   await expect(page.getByText('วันหมดหนี้ 3 สถานการณ์')).toBeVisible();
   await expect(page.locator('.scenario-row')).toHaveCount(3);
+  const millionMilestone=page.locator('#forecast-chart [data-milestone="1 ล้าน"]');
+  const halfMillionMilestone=page.locator('#forecast-chart [data-milestone="5 แสน"]');
+  await expect(millionMilestone).toContainText(/[ก-๙.]+ 25\d{2}/);
+  await expect(halfMillionMilestone).toContainText(/[ก-๙.]+ 25\d{2}/);
+  await expect(millionMilestone).toHaveAttribute('data-date',/^\d{4}-\d{2}$/);
+  const initialMillionMonth=await millionMilestone.getAttribute('data-date');
   const averagePayment=await page.evaluate(()=>Math.round(getMonthlyPaymentStats().average));
   await expect(page.locator('#planner-payment-number')).toHaveValue(String(averagePayment));
+  await page.locator('#planner-payment-number').fill('80000');
+  await expect.poll(()=>millionMilestone.getAttribute('data-date')).not.toBe(initialMillionMonth);
   await page.locator('.category-tab').filter({hasText:'ตั้งค่า'}).click();
   await expect(page.getByText('อัตราดอกเบี้ยและ MRR')).toBeVisible();
   await expect(page.locator('#receipt-backup-title')).toBeVisible();

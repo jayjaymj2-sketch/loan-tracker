@@ -808,7 +808,9 @@ function buildForecastSVG(actualSeries, projection){
     const x=xOf(p.date), y=yOf(p.balance);
     const anchor=x>W-62?'end':'start';
     const tx=x>W-62?x-4:x+4;
-    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#c89730" stroke="#fff" stroke-width="1.5"/><text x="${tx.toFixed(1)}" y="${Math.max(y-6,9).toFixed(1)}" text-anchor="${anchor}" font-size="7.5" fill="#8a6418" font-family="Chakra Petch">${p.label}</text>`;
+    const monthLabel=p.label==='หมดหนี้'?'':thaiMonthYear(String(p.date).slice(0,7));
+    const labelY=Math.max(y-(monthLabel?14:6),9);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#c89730" stroke="#fff" stroke-width="1.5"/><text data-milestone="${p.label}" data-date="${String(p.date).slice(0,7)}" x="${tx.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${anchor}" font-size="7.5" fill="#8a6418" font-family="Chakra Petch"><tspan x="${tx.toFixed(1)}">${p.label}</tspan>${monthLabel?`<tspan x="${tx.toFixed(1)}" dy="8.5" font-size="6.8" fill="#5a6378">${monthLabel}</tspan>`:''}</text>`;
   }).join('');
   const labelPoints=[actual[0], actual[actual.length-1], forecast[forecast.length-1]];
   const xLabels=labelPoints.map((p,i)=>`<text x="${xOf(p.date).toFixed(1)}" y="${H-6}" text-anchor="${i===0?'start':i===labelPoints.length-1?'end':'middle'}" font-size="7.5" fill="#5a6378" font-family="Chakra Petch">${thaiDate(p.date)}</text>`).join('');
