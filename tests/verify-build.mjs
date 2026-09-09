@@ -24,11 +24,12 @@ assert.ok(app.includes("setAppFontSize"), 'app must provide font-size controls')
 assert.ok(app.includes("LoanAnalytics.orderPaymentEntries(state.payments).slice(0,5)"), 'overview payments must use the shared payment history order');
 assert.ok(app.includes("buildLatestAnnualInterestCard"), 'overview must show the latest annual interest summary');
 assert.ok(app.includes("buildPreviousMonthCard"), 'overview must show the previous completed month summary');
+assert.ok(app.includes("buildCurrentMonthCard"), 'overview must also show the current month summary');
 assert.ok(app.includes("LoanAnalytics.summarizePreviousMonth"), 'monthly summary must calculate the previous calendar month');
 assert.ok(app.includes("buildPrincipalInterestChart"), 'overview must show the 12-month principal/interest chart');
 assert.ok(app.includes("buildHistoryFilterCard"), 'history must provide search and filters');
-assert.ok(html.includes("./js/app.js?v=19"), 'HTML must request the updated app bundle without stale browser cache');
-assert.ok(worker.includes("loan-tracker-cache-v19"), 'service worker cache must be bumped for the feature update');
+assert.ok(html.includes("./js/app.js?v=20"), 'HTML must request the updated app bundle without stale browser cache');
+assert.ok(worker.includes("loan-tracker-cache-v20"), 'service worker cache must be bumped for the feature update');
 assert.ok(worker.includes('self.skipWaiting()'), 'service worker updates must activate automatically');
 assert.ok(!app.includes('showAppUpdateBanner'), 'app updates must not require an update-confirmation banner');
 assert.ok(app.includes('ReceiptStore'), 'app must support local receipt attachment storage');
