@@ -51,6 +51,25 @@ test('legacy planner value starts from the latest 12-month average and a new cho
   await expect(page.locator('#planner-payment-number')).toHaveValue('52000');
 });
 
+test('principal and interest chart opens details for paid and empty months',async({page})=>{
+  const chart=page.getByRole('region',{name:'เงินต้นเทียบดอกเบี้ย 12 เดือน'});
+  await expect(chart.getByRole('button')).toHaveCount(12);
+
+  const paidBar=chart.locator('.split-chart-column:not([data-amount="0"])').first();
+  const paidMonth=await paidBar.getAttribute('data-month');
+  await paidBar.click();
+  await expect(chart.locator('#principal-interest-detail')).toHaveAttribute('data-month',paidMonth);
+  await expect(paidBar).toHaveAttribute('aria-pressed','true');
+  await expect(chart.locator('.split-detail-metrics')).toContainText('เงินต้น');
+  await expect(chart.locator('.split-detail-metrics')).toContainText('ดอกเบี้ย');
+
+  const emptyBar=chart.locator('.split-chart-column[data-amount="0"]').last();
+  const emptyMonth=await emptyBar.getAttribute('data-month');
+  await emptyBar.click();
+  await expect(chart.locator('#principal-interest-detail')).toHaveAttribute('data-month',emptyMonth);
+  await expect(chart.locator('#principal-interest-detail')).toContainText('เดือนนี้ยังไม่มีรายการชำระ');
+});
+
 test('history filtering and image receipt attachment work',async({page})=>{
   await page.locator('.category-tab').filter({hasText:'ประวัติ'}).click();
   await page.locator('.history-search input').fill('19600');

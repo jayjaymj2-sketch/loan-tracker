@@ -1811,8 +1811,19 @@ body{
   gap:6px;
   min-width:0;
   height:100%;
+  padding:0;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  font:inherit;
   text-align:center;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .16s ease,box-shadow .16s ease;
 }
+.split-chart-column:hover{ background:rgba(180,150,80,.08); }
+.split-chart-column:focus-visible{ outline:3px solid rgba(200,151,48,.42); outline-offset:2px; }
+.split-chart-column.selected{ background:rgba(200,151,48,.12); box-shadow:inset 0 0 0 1px rgba(180,150,80,.2); }
 .split-chart-track{ display:flex; align-items:flex-end; justify-content:center; min-height:0; }
 .split-chart-stack{
   display:flex;
@@ -1825,6 +1836,7 @@ body{
   box-shadow:0 1px 4px rgba(10,22,40,0.1);
 }
 .split-chart-stack span{ display:block; width:100%; }
+.split-chart-stack.empty{ height:3px!important; background:rgba(16,34,61,.12); box-shadow:none; }
 .split-interest{ background:var(--gold-500); }
 .split-principal{ background:var(--navy-700); }
 .split-chart-column > span{
@@ -1840,6 +1852,39 @@ body{
   font-size:calc(9.5px + var(--font-bump));
   color:var(--ink-soft);
 }
+.split-chart-detail{
+  margin-top:13px;
+  overflow:hidden;
+  border:1px solid rgba(180,150,80,.2);
+  border-radius:13px;
+  background:#fffdfa;
+  box-shadow:0 2px 8px rgba(16,34,61,.04);
+}
+.split-detail-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:13px 14px;
+  background:linear-gradient(135deg,var(--navy-800),var(--navy-700));
+  color:#fff;
+}
+.split-detail-head > div{ display:flex; flex-direction:column; gap:2px; }
+.split-detail-head > div:last-child{ align-items:flex-end; text-align:right; }
+.split-detail-head span{ font-size:calc(9.5px + var(--font-bump)); color:rgba(255,255,255,.7); }
+.split-detail-head strong{ font:600 calc(15px + var(--font-bump)) 'Chakra Petch',sans-serif; }
+.split-detail-head > div:last-child strong{ color:var(--gold-300); }
+.split-detail-head small{ font:400 calc(9px + var(--font-bump)) 'Sarabun',sans-serif; color:rgba(255,255,255,.72); }
+.split-detail-metrics{ display:grid; grid-template-columns:1fr 1fr 1fr; }
+.split-detail-metrics > div{ min-width:0; padding:11px 8px; text-align:center; }
+.split-detail-metrics > div + div{ border-left:1px solid rgba(180,150,80,.14); }
+.split-detail-metrics span{ display:flex; align-items:center; justify-content:center; gap:4px; font-size:calc(9px + var(--font-bump)); color:var(--ink-soft); }
+.split-detail-metrics i{ width:7px; height:7px; border-radius:50%; }
+.split-detail-metrics i.principal{ background:var(--navy-700); }
+.split-detail-metrics i.interest{ background:var(--gold-500); }
+.split-detail-metrics strong{ display:block; margin-top:3px; font:600 calc(11px + var(--font-bump)) 'Chakra Petch',sans-serif; color:var(--navy-800); white-space:nowrap; }
+.split-chart-detail > p{ padding:0 12px 11px; text-align:center; font-size:calc(9.5px + var(--font-bump)); color:var(--ink-soft); }
+.split-chart-detail.empty .split-detail-metrics{ opacity:.65; }
 .interest-comparison{
   display:grid;
   grid-template-columns:1fr 1fr;

@@ -132,6 +132,7 @@ let pendingReceiptFile = null;
 let pendingReceiptTargetId = null;
 let currentReceiptViewer = null;
 let currentReceiptObjectUrl = '';
+let selectedPrincipalInterestMonth = null;
 try{
   const savedPlanner = JSON.parse(localStorage.getItem(PLANNER_PREFS_KEY) || 'null');
   if(savedPlanner && typeof savedPlanner === 'object'){
@@ -1377,15 +1378,41 @@ function buildCurrentMonthCard(avgPayment){
 function buildPrincipalInterestChart(){
   const series=LoanAnalytics.buildMonthlySeries(state.payments,todayStr(),12);
   const maxAmount=Math.max(...series.map(row=>row.amount),1);
+  if(!series.some(row=>row.key===selectedPrincipalInterestMonth)){
+    const latestPaidMonth=series.slice().reverse().find(row=>row.amount>0);
+    selectedPrincipalInterestMonth=(latestPaidMonth||series[series.length-1]).key;
+  }
+  const selectedRow=series.find(row=>row.key===selectedPrincipalInterestMonth)||series[series.length-1];
   const bars=series.map(row=>{
     const totalHeight=row.amount/maxAmount*100;
     const interestPct=row.amount>0?row.interest/row.amount*100:0;
     const principalPct=row.amount>0?row.principal/row.amount*100:0;
     const [year]=row.key.split('-').map(Number);
     const month=thaiMonthYear(row.key).split(' ')[0];
-    return `<div class="split-chart-column" title="${thaiMonthYear(row.key)} · เงินต้น ${fmt(row.principal,0)} · ดอกเบี้ย ${fmt(row.interest,0)}"><div class="split-chart-track"><div class="split-chart-stack" style="height:${totalHeight}%"><span class="split-interest" style="height:${interestPct}%"></span><span class="split-principal" style="height:${principalPct}%"></span></div></div><span>${month}<small>${String(year+543).slice(-2)}</small></span></div>`;
+    const selected=row.key===selectedRow.key;
+    const details=row.amount>0?`ยอดชำระ ${fmt(row.amount,0)} บาท เงินต้น ${fmt(row.principal,0)} บาท ดอกเบี้ย ${fmt(row.interest,0)} บาท`:'ยังไม่มีรายการชำระ';
+    return `<button type="button" class="split-chart-column ${selected?'selected':''}" data-month="${row.key}" data-amount="${row.amount}" aria-pressed="${selected}" aria-label="${thaiMonthYear(row.key)} ${details}" title="${thaiMonthYear(row.key)} · ${details}" onclick="selectPrincipalInterestMonth('${row.key}')"><span class="split-chart-track" aria-hidden="true"><span class="split-chart-stack ${row.amount>0?'':'empty'}" style="height:${totalHeight}%"><span class="split-interest" style="height:${interestPct}%"></span><span class="split-principal" style="height:${principalPct}%"></span></span></span><span>${month}<small>${String(year+543).slice(-2)}</small></span></button>`;
   }).join('');
-  return `<section class="split-chart-card" aria-label="เงินต้นเทียบดอกเบี้ย 12 เดือน"><div class="split-chart-head"><h3>เงินต้นเทียบดอกเบี้ย 12 เดือน</h3><div><span><i class="principal"></i>เงินต้น</span><span><i class="interest"></i>ดอกเบี้ย</span></div></div><div class="split-chart-plot">${bars}</div><p>รวมยอดชำระจริงรายเดือน · แตะแท่งเพื่อดูรายละเอียด</p></section>`;
+  return `<section class="split-chart-card" aria-label="เงินต้นเทียบดอกเบี้ย 12 เดือน"><div class="split-chart-head"><h3>เงินต้นเทียบดอกเบี้ย 12 เดือน</h3><div><span><i class="principal"></i>เงินต้น</span><span><i class="interest"></i>ดอกเบี้ย</span></div></div><div class="split-chart-plot">${bars}</div><p>รวมยอดชำระจริงรายเดือน · แตะแท่งเพื่อเปลี่ยนเดือน</p>${buildPrincipalInterestDetail(selectedRow)}</section>`;
+}
+
+function buildPrincipalInterestDetail(row){
+  const empty=row.amount<=0;
+  return `<div class="split-chart-detail ${empty?'empty':''}" id="principal-interest-detail" data-month="${row.key}" aria-live="polite"><div class="split-detail-head"><div><span>รายละเอียดเดือนที่เลือก</span><strong>${thaiMonthYear(row.key)}</strong></div><div><span>ยอดชำระรวม</span><strong>${fmt(row.amount,0)} <small>บาท</small></strong></div></div><div class="split-detail-metrics"><div><span><i class="principal"></i>เงินต้น</span><strong>${fmt(row.principal,0)} บาท</strong></div><div><span><i class="interest"></i>ดอกเบี้ย</span><strong>${fmt(row.interest,0)} บาท</strong></div><div><span>รายการชำระ</span><strong>${row.count} ครั้ง</strong></div></div>${empty?'<p>เดือนนี้ยังไม่มีรายการชำระ</p>':''}</div>`;
+}
+
+function selectPrincipalInterestMonth(monthKey){
+  const series=LoanAnalytics.buildMonthlySeries(state.payments,todayStr(),12);
+  const row=series.find(item=>item.key===monthKey);
+  const detail=document.getElementById('principal-interest-detail');
+  if(!row||!detail) return;
+  selectedPrincipalInterestMonth=row.key;
+  document.querySelectorAll('.split-chart-column').forEach(button=>{
+    const selected=button.dataset.month===row.key;
+    button.classList.toggle('selected',selected);
+    button.setAttribute('aria-pressed',String(selected));
+  });
+  detail.outerHTML=buildPrincipalInterestDetail(row);
 }
 
 function buildRecentPayments(){
