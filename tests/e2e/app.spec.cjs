@@ -94,3 +94,46 @@ test('history filtering and image receipt attachment work',async({page})=>{
   await expect(page.locator('.toast')).toContainText('แนบใบเสร็จแล้ว');
   await expect(page.getByRole('button',{name:'ดูใบเสร็จ'}).first()).toBeVisible();
 });
+
+test('PDF reports provide a working way back to the app',async({page,context})=>{
+  await page.locator('.category-tab').filter({hasText:'ตั้งค่า'}).click();
+  const summaryPopupPromise=page.waitForEvent('popup');
+  await page.locator('.utility-btn').filter({hasText:'รายงาน PDF'}).click();
+  const summaryReport=await summaryPopupPromise;
+  await expect(summaryReport.getByRole('heading',{name:'รายงานสรุปหนี้บ้าน'})).toBeVisible();
+  const summaryToolbar=summaryReport.locator('.report-actions');
+  await expect(summaryReport.getByRole('button',{name:'กลับไปแอป'})).toBeVisible();
+  const summaryPrintButton=summaryReport.getByRole('button',{name:'พิมพ์ / บันทึกเป็น PDF'});
+  await expect(summaryPrintButton).toBeVisible();
+  await expect(summaryReport.locator('html')).not.toHaveAttribute('data-print-requested','true');
+  await summaryReport.evaluate(()=>{window.print=()=>document.documentElement.setAttribute('data-print-requested','true');});
+  await summaryPrintButton.click();
+  await expect(summaryReport.locator('html')).toHaveAttribute('data-print-requested','true');
+  await summaryReport.emulateMedia({media:'print'});
+  expect(await summaryToolbar.evaluate(element=>getComputedStyle(element).display)).toBe('none');
+  await summaryReport.emulateMedia({media:'screen'});
+  await summaryReport.evaluate(()=>{window.close=()=>document.documentElement.setAttribute('data-returned-to-app','true');});
+  await summaryReport.getByRole('button',{name:'กลับไปแอป'}).click();
+  await expect(summaryReport.locator('html')).toHaveAttribute('data-returned-to-app','true');
+  await summaryReport.close();
+  await expect(page.getByRole('heading',{name:'ตั้งค่าแอป'})).toBeVisible();
+
+  await page.locator('.category-tab').filter({hasText:'ประวัติ'}).click();
+  await page.getByRole('button',{name:/รายงานภาษีผู้กู้ร่วม/}).click();
+  const taxPopupPromise=page.waitForEvent('popup');
+  await page.getByRole('button',{name:'พิมพ์ / บันทึก PDF'}).click();
+  const taxReport=await taxPopupPromise;
+  await expect(taxReport.getByRole('heading',{name:'รายงานภาษีดอกเบี้ยเงินกู้บ้าน'})).toBeVisible();
+  await expect(taxReport.getByRole('button',{name:'กลับไปแอป'})).toBeVisible();
+  const taxPrintButton=taxReport.getByRole('button',{name:'พิมพ์ / บันทึกเป็น PDF'});
+  await expect(taxPrintButton).toBeVisible();
+  await expect(taxReport.locator('html')).not.toHaveAttribute('data-print-requested','true');
+  await taxReport.evaluate(()=>{window.print=()=>document.documentElement.setAttribute('data-print-requested','true');});
+  await taxPrintButton.click();
+  await expect(taxReport.locator('html')).toHaveAttribute('data-print-requested','true');
+  await taxReport.evaluate(()=>{window.close=()=>document.documentElement.setAttribute('data-returned-to-app','true');});
+  await taxReport.getByRole('button',{name:'กลับไปแอป'}).click();
+  await expect(taxReport.locator('html')).toHaveAttribute('data-returned-to-app','true');
+  await taxReport.close();
+  await expect(page.getByRole('heading',{name:'รายงานภาษีดอกเบี้ยบ้าน'})).toBeVisible();
+});
