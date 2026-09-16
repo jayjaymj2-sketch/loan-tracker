@@ -14,7 +14,7 @@ const FLOATING_SPREAD = 0.015; // MRR - 1.5%
 const FIXED_PERIOD_YEARS = 3;
 
 const STORAGE_KEY = 'loan_state_v1';
-const SEED_VERSION = 7; // เพิ่มเลขนี้เมื่อต้องการบังคับโหลดข้อมูลตั้งต้นใหม่
+const SEED_VERSION = 8; // เพิ่มเลขนี้เมื่อต้องการบังคับโหลดข้อมูลตั้งต้นใหม่
 // หมายเหตุ: currentBalance เก็บเฉพาะ "เงินต้น" หลังตัดชำระงวดล่าสุดเท่านั้น
 // ดอกเบี้ยที่ค้างนับจาก lastUpdateDate จะถูกคำนวณสดทุกครั้งที่เปิดแอพ (ดู liveBalance ใน render)
 
@@ -261,6 +261,7 @@ const SEED_PAYMENTS = [
   {"date":"2025-09-30","amount":19600.0,"interest":895.97,"principalPaid":18704.03,"balanceAfter":2287553.87,"payer":"dad","locked":true},
   {"date":"2025-10-28","amount":20000,"interest":6220.89,"principalPaid":13779.11,"balanceAfter":2273774.76,"payer":"me","locked":true},
   {"date":"2025-10-29","amount":20000,"interest":220.84,"principalPaid":19779.16,"balanceAfter":2253995.6,"payer":"me","locked":true},
+  {"date":"2025-10-31","amount":19600,"interest":437.83,"principalPaid":19162.17,"balanceAfter":2234833.43,"payer":"","locked":true,"source":"receipt-upload"},
   {"date":"2025-11-25","amount":20000,"interest":5426.36,"principalPaid":14573.64,"balanceAfter":2220259.79,"payer":"me","locked":true},
   {"date":"2025-11-25","amount":20000,"interest":0,"principalPaid":14793.35,"balanceAfter":2200259.79,"payer":"me","locked":true},
   {"date":"2025-11-30","amount":19600,"interest":1068.48,"principalPaid":18531.52,"balanceAfter":2181728.27,"payer":"me","locked":true},

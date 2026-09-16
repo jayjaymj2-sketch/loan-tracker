@@ -2,11 +2,11 @@
 // หน้าที่: เก็บไฟล์หน้าแอพ (HTML/manifest/ไอคอน) ไว้ใช้ออฟไลน์ได้
 // ข้อมูลจริง (จาก Google Sheets/Apps Script) จะไม่ถูก cache เพราะต้องสดเสมอ
 
-const CACHE_NAME = 'loan-tracker-cache-v24'; // เพิ่มเลขนี้ทุกครั้งที่อัปเดตไฟล์ เพื่อบังคับเครื่องผู้ใช้ดึงเวอร์ชันใหม่
+const CACHE_NAME = 'loan-tracker-cache-v25'; // เพิ่มเลขนี้ทุกครั้งที่อัปเดตไฟล์ เพื่อบังคับเครื่องผู้ใช้ดึงเวอร์ชันใหม่
 const ASSETS = [
   './loan_tracker.html',
   './styles.css?v=24',
-  './js/app.js?v=24',
+  './js/app.js?v=25',
   './js/receipt-parser.js',
   './js/sync-version.js',
   './js/loan-analytics.js?v=24',

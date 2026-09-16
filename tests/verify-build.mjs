@@ -30,8 +30,10 @@ assert.ok(app.includes("buildPrincipalInterestChart"), 'overview must show the 1
 assert.ok(app.includes("selectPrincipalInterestMonth"), 'principal/interest chart bars must open monthly details');
 assert.ok(app.includes("buildPrintReportToolbar"), 'print reports must provide a way back to the app');
 assert.ok(app.includes("buildHistoryFilterCard"), 'history must provide search and filters');
-assert.ok(html.includes("./js/app.js?v=24"), 'HTML must request the updated app bundle without stale browser cache');
-assert.ok(worker.includes("loan-tracker-cache-v24"), 'service worker cache must be bumped for the feature update');
+assert.ok(app.includes('const SEED_VERSION = 8'), 'seed version must refresh clients after adding the missing October 2025 receipt');
+assert.ok(app.includes('{"date":"2025-10-31","amount":19600,"interest":437.83,"principalPaid":19162.17,"balanceAfter":2234833.43'), 'seed data must include the verified 31 October 2025 receipt');
+assert.ok(html.includes("./js/app.js?v=25"), 'HTML must request the updated app bundle without stale browser cache');
+assert.ok(worker.includes("loan-tracker-cache-v25"), 'service worker cache must be bumped for the feature update');
 assert.ok(worker.includes('self.skipWaiting()'), 'service worker updates must activate automatically');
 assert.ok(!app.includes('showAppUpdateBanner'), 'app updates must not require an update-confirmation banner');
 assert.ok(app.includes('ReceiptStore'), 'app must support local receipt attachment storage');
