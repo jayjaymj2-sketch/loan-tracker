@@ -7,7 +7,7 @@ const backend = fs.readFileSync('apps-script/Code.gs', 'utf8');
 const app = fs.readFileSync('js/app.js', 'utf8');
 new Function(backend);
 
-for(const asset of ['./styles.css', './js/receipt-parser.js', './js/sync-version.js', './js/connection.js', './js/loan-analytics.js', './js/receipt-store.js', './js/encrypted-backup.js', './js/app.js']){
+for(const asset of ['./styles.css', './js/receipt-parser.js', './js/sync-version.js', './js/connection.js', './js/google-bridge.js', './js/loan-analytics.js', './js/receipt-store.js', './js/encrypted-backup.js', './js/app.js']){
   assert.ok(html.includes(asset), `loan_tracker.html must load ${asset}`);
   assert.ok(worker.includes(asset), `service-worker.js must cache ${asset}`);
 }
@@ -33,8 +33,8 @@ assert.ok(app.includes("buildHistoryFilterCard"), 'history must provide search a
 assert.ok(app.includes('const SEED_VERSION = 9'), 'seed version must refresh clients after correcting the November 2025 receipt split');
 assert.ok(app.includes('{"date":"2025-10-31","amount":19600,"interest":437.83,"principalPaid":19162.17,"balanceAfter":2234833.43'), 'seed data must include the verified 31 October 2025 receipt');
 assert.ok(app.includes('{"date":"2025-11-25","amount":20000,"interest":0,"principalPaid":20000.00,"balanceAfter":2200259.79'), 'seed data must include the corrected 25 November 2025 receipt split');
-assert.ok(html.includes("./js/app.js?v=27"), 'HTML must request the updated app bundle without stale browser cache');
-assert.ok(worker.includes("loan-tracker-cache-v27"), 'service worker cache must be bumped for the feature update');
+assert.ok(html.includes("./js/app.js?v=28"), 'HTML must request the updated app bundle without stale browser cache');
+assert.ok(worker.includes("loan-tracker-cache-v28"), 'service worker cache must be bumped for the feature update');
 assert.ok(worker.includes('self.skipWaiting()'), 'service worker updates must activate automatically');
 assert.ok(!app.includes('showAppUpdateBanner'), 'app updates must not require an update-confirmation banner');
 assert.ok(app.includes('ReceiptStore'), 'app must support local receipt attachment storage');

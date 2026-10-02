@@ -58,6 +58,15 @@ test('doPost acknowledges exact retry even with stale version and does not write
   assert.equal(result.version,4);
 });
 
+test('bridge RPC delegates to the same authenticated GET and POST handlers',()=>{
+  const isolated={console};
+  vm.createContext(isolated); vm.runInContext(source,isolated);
+  isolated.isAuthorized_=()=>false;
+  isolated.json_=payload=>({getContent:()=>JSON.stringify(payload)});
+  assert.equal(isolated.bridgeRequest({action:'list',pass:'wrong'}).ok,false);
+  assert.equal(isolated.bridgeRequest({action:'add',pass:'wrong',payment:previous}).ok,false);
+});
+
 test('historic seed imports preserve known gaps and amounts, but new ledgers stay strict',()=>{
   const app=fs.readFileSync('js/app.js','utf8');
   const seed=JSON.parse(app.match(/const SEED_PAYMENTS = (\[[\s\S]*?\n\]);/)[1]).map((p,i)=>({...p,id:String(i),source:'legacy-import'}));

@@ -36,7 +36,7 @@ test('concurrent sync uses one request and orders same-day receipts by balance',
   expect(await page.evaluate(()=>state.currentBalance)).toBe(1811208.57);
 });
 
-test('lost save response keeps receipt draft and retries with same id without duplicates',async({page})=>{
+for(const committedBeforeError of [true,false]) test(`lost save response ${committedBeforeError?'is confirmed by read-back':'keeps draft for retry'} without duplicates`,async({page})=>{
   let saved=null;
   const posts=[];
   let gets=0;
@@ -48,7 +48,8 @@ test('lost save response keeps receipt draft and retries with same id without du
     }
     const body=JSON.parse(route.request().postData());
     posts.push(body);
-    if(!saved){saved=body.payment; return route.abort('failed');}
+    if(posts.length===1){if(committedBeforeError) saved=body.payment; return route.abort('failed');}
+    saved=body.payment;
     return route.fulfill({json:{ok:true,payment:saved,duplicate:true,version:2}});
   });
   await page.goto('/loan_tracker.html');
@@ -61,14 +62,16 @@ test('lost save response keeps receipt draft and retries with same id without du
   await page.evaluate(()=>{lastAutoSyncAt=0; window.dispatchEvent(new Event('focus'));});
   expect(gets).toBe(before);
   await page.locator('#receipt-confirm').click();
-  await expect(page.locator('#receipt-overlay')).toHaveClass(/show/);
-  await expect(page.locator('#receipt-warnings')).toContainText('เชื่อมต่อระบบกลางไม่ได้');
-  await expect(page.locator('#rm-amount')).toHaveValue('20000.00');
-  expect(await page.evaluate(()=>pendingReceiptFile.name)).toBe('test.pdf');
-  await page.locator('#receipt-confirm').click();
+  if(!committedBeforeError){
+    await expect(page.locator('#receipt-overlay')).toHaveClass(/show/);
+    await expect(page.locator('#receipt-warnings')).toContainText('เชื่อมต่อระบบกลางไม่ได้');
+    await expect(page.locator('#rm-amount')).toHaveValue('20000.00');
+    expect(await page.evaluate(()=>pendingReceiptFile.name)).toBe('test.pdf');
+    await page.locator('#receipt-confirm').click();
+  }
   await expect(page.locator('.toast')).toContainText('นำเข้าใบเสร็จเรียบร้อย');
-  expect(posts.length).toBe(2);
-  expect(posts[0].payment.id).toBe(posts[1].payment.id);
+  expect(posts.length).toBe(committedBeforeError?1:2);
+  if(!committedBeforeError) expect(posts[0].payment.id).toBe(posts[1].payment.id);
   expect(await page.evaluate(()=>state.payments.filter(p=>p.date==='2026-07-25').length)).toBe(1);
   expect(await page.evaluate(()=>receiptBackupStats.count)).toBe(1);
 });

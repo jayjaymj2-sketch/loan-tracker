@@ -19,11 +19,11 @@ test('incomplete offline cache does not activate and replace working version',as
 });
 test('activation preserves unrelated applications caches',async()=>{
   const removed=[];
-  const {events}=setup({caches:{keys:async()=>['other-app','loan-tracker-cache-v26','loan-tracker-cache-v27'],delete:async name=>removed.push(name)}});
+  const {events}=setup({caches:{keys:async()=>['other-app','loan-tracker-cache-v27','loan-tracker-cache-v28'],delete:async name=>removed.push(name)}});
   let work;
   events.activate({waitUntil:promise=>work=promise});
   await work;
-  assert.deepEqual(removed,['loan-tracker-cache-v26']);
+  assert.deepEqual(removed,['loan-tracker-cache-v27']);
 });
 test('offline navigation with query parameters opens cached app, while backend is never intercepted',async()=>{
   let options;

@@ -72,8 +72,29 @@ let syncPromise = null;
 let receiptImportBusy = false;
 let pendingReceiptPaymentId = null;
 
-function requestServer(url, options){
-  return LoanConnection.requestJSON(url, options);
+async function requestServer(url, options){
+  const useBridge=location.hostname==='jayjaymj2-sketch.github.io' && typeof LoanBridge!=='undefined';
+  const isWrite=options?.method==='POST';
+  const body=isWrite?JSON.parse(options.body):Object.fromEntries(new URL(url).searchParams);
+  try{
+    if(useBridge){
+      try{ return await LoanBridge.request(APPS_SCRIPT_URL,body); }
+      catch(error){ if(isWrite) throw error; }
+    }
+    return await LoanConnection.requestJSON(url, options);
+  }
+  catch(error){
+    // A ContentService response can fail after Google Sheets already committed a write.
+    // Read back and verify the exact operation; never repeat a write automatically.
+    if(!options || options.method!=='POST') throw error;
+    if(!body.pass) throw error;
+    try{
+      const listing=await requestServer(APPS_SCRIPT_URL+'?action=list&pass='+encodeURIComponent(body.pass));
+      const confirmed=LoanConnection.confirmWriteResult(body,listing);
+      if(confirmed) return confirmed;
+    }catch(_){}
+    throw error;
+  }
 }
 
 function absorbServerVersion(data){

@@ -22,6 +22,7 @@ const HEADERS = [
 
 function doGet(e){
   const params = (e && e.parameter) || {};
+  if(params.transport === 'bridge') return bridgePage_(params.channel);
   if(params.action !== 'list') return json_({ ok:false, error:'ไม่รู้จักคำสั่ง' });
   if(!isAuthorized_(params.pass)) return json_({ ok:false, error:'รหัสผ่านไม่ถูกต้อง' });
 
@@ -366,4 +367,33 @@ function normalizeTimestamp_(value){
 
 function json_(payload){
   return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// HtmlService's RPC avoids ContentService's temporary /macros/echo response URLs.
+// Authentication and all write validation still run through the same handlers.
+function bridgeRequest(body){
+  const output=body && body.action==='list'
+    ? doGet({parameter:{action:'list',pass:body.pass}})
+    : doPost({postData:{contents:JSON.stringify(body || {})}});
+  return JSON.parse(output.getContent());
+}
+
+function bridgePage_(rawChannel){
+  const channel=String(rawChannel || '');
+  if(!/^[a-zA-Z0-9-]{20,80}$/.test(channel)) return HtmlService.createHtmlOutput('Invalid channel');
+  const origin='https://jayjaymj2-sketch.github.io';
+  const html=`<!doctype html><html><head><meta charset="utf-8"></head><body><script>
+    const marker='loan-tracker-bridge',channel=${JSON.stringify(channel)},origin=${JSON.stringify(origin)};
+    function send(message){window.top.postMessage(Object.assign({marker,channel},message),origin);}
+    window.addEventListener('message',function(event){
+      const data=event.data;
+      if(event.source!==window.top||event.origin!==origin||!data||data.marker!==marker||data.channel!==channel||data.kind!=='request')return;
+      google.script.run.withSuccessHandler(function(result){send({kind:'result',id:data.id,result});})
+        .withFailureHandler(function(error){send({kind:'result',id:data.id,error:'ระบบกลางบันทึกไม่สำเร็จ: '+error.message});})
+        .bridgeRequest(data.body);
+    });
+    send({kind:'ready'});
+  </script></body></html>`;
+  // Only the existing GitHub app is accepted by the message handler. No credentials in this HTML.
+  return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
