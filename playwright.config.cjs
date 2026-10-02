@@ -5,7 +5,7 @@ module.exports=defineConfig({
   timeout:30000,
   retries:process.env.CI?1:0,
   reporter:process.env.CI?'html':'line',
-  use:{baseURL:'http://127.0.0.1:4173',trace:'retain-on-failure',screenshot:'only-on-failure'},
+  use:{baseURL:'http://127.0.0.1:4173',channel:process.env.PLAYWRIGHT_CHANNEL||undefined,trace:'retain-on-failure',screenshot:'only-on-failure'},
   projects:[
     {name:'mobile-chromium',use:{...devices['Pixel 7']}},
     {name:'desktop-chromium',use:{...devices['Desktop Chrome'],viewport:{width:1280,height:900}}}

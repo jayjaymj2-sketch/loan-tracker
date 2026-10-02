@@ -51,6 +51,11 @@ function doPost(e){
     const currentVersion = getVersion_();
     const expectedVersion = normalizeVersion_(body.expectedVersion);
 
+    // A retry after a lost response must not create another payment or increment the version.
+    if(body.action === 'add'){
+      const retry = findExistingPayment_(body.payment, readPayments_());
+      if(retry) return json_(Object.assign(retry, {version:currentVersion}));
+    }
     // Client รุ่นเก่าที่ยังไม่ส่ง expectedVersion ยังใช้งานได้ แต่รุ่นใหม่จะป้องกันข้อมูลชนกันเต็มรูปแบบ
     if(expectedVersion !== null && expectedVersion !== currentVersion){
       return json_({
@@ -85,9 +90,8 @@ function addPayment_(raw){
   if(!payment) return { ok:false, error:'ข้อมูลรายการชำระไม่ครบถ้วน' };
   const sheet = getSheet_();
   const existing = readPayments_();
-  if(existing.some(function(item){ return item.id === payment.id; })){
-    return { ok:false, error:'รายการนี้มีอยู่แล้ว' };
-  }
+  const duplicate = findExistingPayment_(payment, existing);
+  if(duplicate) return duplicate;
   const validation = validatePaymentAgainstLedger_(payment, existing);
   if(!validation.ok) return validation;
   const now = new Date().toISOString();
@@ -95,6 +99,21 @@ function addPayment_(raw){
   payment.updatedAt = now;
   sheet.appendRow(paymentToRow_(payment));
   return { ok:true, payment:payment };
+}
+
+function findExistingPayment_(raw, existing){
+  if(!raw || !raw.id) return null;
+  const found = existing.find(function(item){ return item.id === String(raw.id); });
+  if(!found) return null;
+  const payment = sanitizePayment_(raw);
+  const same = payment && ['date','amount','interest','principalPaid','balanceAfter'].every(function(key){
+    return found[key] === payment[key];
+  });
+  return same ? {ok:true, payment:found, duplicate:true} : {ok:false, code:'DUPLICATE_ID', error:'รหัสรายการนี้มีข้อมูลต่างกัน กรุณาซิงค์แล้วตรวจสอบรายการเดิม'};
+}
+
+function comparePayments_(a,b){
+  return a.date.localeCompare(b.date) || b.balanceAfter-a.balanceAfter;
 }
 
 function deletePayment_(id){
@@ -128,10 +147,11 @@ function bulkImport_(payments){
     payment.updatedAt = now;
     return payment;
   });
-  const ledgerValidation = validateLedger_(cleaned);
+  const legacy = cleaned.every(function(payment){ return payment.locked && payment.source === 'legacy-import'; });
+  const ledgerValidation = validateLedger_(cleaned, legacy);
   if(!ledgerValidation.ok) return ledgerValidation;
   sheet.getRange(2, 1, cleaned.length, HEADERS.length).setValues(cleaned.map(paymentToRow_));
-  return { ok:true, count:cleaned.length };
+  return { ok:true, count:cleaned.length, warnings:ledgerValidation.warnings || [] };
 }
 
 function validatePaymentAgainstLedger_(payment, existing){
@@ -140,10 +160,13 @@ function validatePaymentAgainstLedger_(payment, existing){
   if(formulaError > MONEY_TOLERANCE){
     return { ok:false, code:'PAYMENT_SUM_MISMATCH', error:'ยอดชำระไม่เท่ากับเงินต้น + ดอกเบี้ย (ต่างกัน ' + round2_(formulaError) + ' บาท)' };
   }
-  const ordered = (existing || []).slice();
+  if((existing || []).some(function(item){ return item.date===payment.date && Math.abs(item.balanceAfter-payment.balanceAfter)<0.01; })){
+    return {ok:false, code:'DUPLICATE_PAYMENT', error:'มีรายการวันที่และยอดคงเหลือนี้แล้ว กรุณาซิงค์เพื่อตรวจสอบ'};
+  }
+  const ordered = (existing || []).slice().sort(comparePayments_);
   let insertAt = ordered.length;
   for(let i = 0; i < ordered.length; i++){
-    if(ordered[i].date > payment.date){ insertAt = i; break; }
+    if(comparePayments_(ordered[i], payment)>0){ insertAt = i; break; }
   }
   const previous = insertAt > 0 ? ordered[insertAt - 1] : null;
   const next = insertAt < ordered.length ? ordered[insertAt] : null;
@@ -164,21 +187,35 @@ function validatePaymentAgainstLedger_(payment, existing){
   return { ok:true };
 }
 
-function validateLedger_(payments){
-  const ordered = (payments || []).slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+function validateLedger_(payments, allowLegacyGaps){
+  const ordered = (payments || []).slice().sort(comparePayments_);
+  const warnings = [];
+  const ids = new Set();
+  const receipts = new Set();
   for(let i = 0; i < ordered.length; i++){
+    const payment=ordered[i];
+    const receiptKey=payment.date+':'+payment.balanceAfter.toFixed(2);
+    if(ids.has(payment.id) || receipts.has(receiptKey)) return {ok:false, code:'DUPLICATE_PAYMENT', error:'ประวัตินำเข้ามีรายการซ้ำ'};
+    ids.add(payment.id); receipts.add(receiptKey);
     const formulaError = Math.abs(ordered[i].amount - ordered[i].principalPaid - ordered[i].interest);
-    if(ordered[i].amount <= 0 || formulaError > MONEY_TOLERANCE){
+    if(ordered[i].amount <= 0){
+      return {ok:false, code:'IMPORT_VALIDATION_FAILED', error:'ยอดชำระต้องมากกว่า 0 บาท'};
+    }
+    if(formulaError > MONEY_TOLERANCE){
+      if(allowLegacyGaps) warnings.push({date:payment.date,code:'PAYMENT_SUM_MISMATCH',difference:round2_(formulaError)});
+      else
       return { ok:false, code:'IMPORT_VALIDATION_FAILED', error:'รายการนำเข้าลำดับที่ ' + (i + 1) + ' มียอดชำระไม่เท่ากับเงินต้น + ดอกเบี้ย' };
     }
     if(i > 0){
       const expected = round2_(ordered[i - 1].balanceAfter - ordered[i].principalPaid);
       if(Math.abs(expected - ordered[i].balanceAfter) > BALANCE_TOLERANCE){
+        if(allowLegacyGaps) warnings.push({date:payment.date,code:'BALANCE_DISCONTINUITY',difference:round2_(Math.abs(expected-payment.balanceAfter))});
+        else
         return { ok:false, code:'IMPORT_BALANCE_DISCONTINUITY', error:'รายการนำเข้าลำดับที่ ' + (i + 1) + ' มียอดคงเหลือไม่ต่อเนื่อง' };
       }
     }
   }
-  return { ok:true };
+  return { ok:true, warnings:warnings };
 }
 
 function getLoanSettings_(){
@@ -237,7 +274,7 @@ function readPayments_(){
     payment.createdAt = normalizeTimestamp_(raw.createdAt);
     payment.updatedAt = normalizeTimestamp_(raw.updatedAt);
     return payment;
-  }).filter(Boolean).sort(function(a,b){ return a.date.localeCompare(b.date); });
+  }).filter(Boolean).sort(comparePayments_);
 }
 
 function getSheet_(){

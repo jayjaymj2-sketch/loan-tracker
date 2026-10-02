@@ -14,7 +14,7 @@ const FLOATING_SPREAD = 0.015; // MRR - 1.5%
 const FIXED_PERIOD_YEARS = 3;
 
 const STORAGE_KEY = 'loan_state_v1';
-const SEED_VERSION = 9; // เพิ่มเลขนี้เมื่อต้องการบังคับโหลดข้อมูลตั้งต้นใหม่
+const SEED_VERSION = 9; // รุ่นประวัติตั้งต้น ใช้เฉพาะเครื่องที่ยังไม่มีแคช; ระบบกลางเป็นข้อมูลหลัก
 // หมายเหตุ: currentBalance เก็บเฉพาะ "เงินต้น" หลังตัดชำระงวดล่าสุดเท่านั้น
 // ดอกเบี้ยที่ค้างนับจาก lastUpdateDate จะถูกคำนวณสดทุกครั้งที่เปิดแอพ (ดู liveBalance ใน render)
 
@@ -68,6 +68,13 @@ function localCacheSet(obj){
 
 let syncStatus = { online: false, lastSync: null, error: null, syncing: false };
 let serverVersion = null;
+let syncPromise = null;
+let receiptImportBusy = false;
+let pendingReceiptPaymentId = null;
+
+function requestServer(url, options){
+  return LoanConnection.requestJSON(url, options);
+}
 
 function absorbServerVersion(data){
   if(typeof SyncVersion === 'undefined' || !data) return;
@@ -326,9 +333,13 @@ function buildAnnualInterestSummary(){
 async function loadState(){
   // โหลดจากแคชในเครื่อง (localStorage) ก่อน เพื่อให้เปิดแอพได้ทันทีแม้ออฟไลน์
   const cached = localCacheGet();
-  if(cached && cached.seedVersion === SEED_VERSION){
+  if(cached && Array.isArray(cached.payments) && Number.isFinite(Number(cached.originalPrincipal))){
     state = cached;
+    // Server data is authoritative. A bundle update must not replace newer cached payments.
+    state.seedVersion = SEED_VERSION;
     if(!Number.isFinite(Number(state.currentMRR))) state.currentMRR=6.60;
+    recomputeFromPayments(state.payments);
+    saveState();
     return;
   }
 
@@ -355,7 +366,7 @@ function saveState(){
 
 // จัดเรียงรายการตามวันที่ แล้วอัปเดตยอดคงเหลือ/วันที่อัปเดตล่าสุดให้ตรงกับรายการสุดท้าย
 function recomputeFromPayments(payments){
-  payments = payments.slice().sort((a,b)=> a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+  payments = payments.slice().sort((a,b)=> a.date.localeCompare(b.date) || Number(b.balanceAfter)-Number(a.balanceAfter));
   state.payments = payments;
   if(payments.length === 0){
     state.currentBalance = state.trackingAnchorBalance != null ? state.trackingAnchorBalance : state.originalPrincipal;
@@ -369,12 +380,19 @@ function recomputeFromPayments(payments){
 
 // ดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์กลาง (Google Sheets ผ่าน Apps Script)
 async function syncFromServer(){
+  if(syncPromise) return syncPromise;
+  syncPromise = performServerSync();
+  try{ return await syncPromise; }
+  finally{ syncPromise = null; }
+}
+
+async function performServerSync(){
   const pass = getSavedPass();
   if(!isConfigured() || !pass){ return false; }
   syncStatus.syncing = true;
   try{
-    const res = await fetch(APPS_SCRIPT_URL + '?action=list&pass=' + encodeURIComponent(pass));
-    const data = await res.json();
+    const data = await requestServer(APPS_SCRIPT_URL + '?action=list&pass=' + encodeURIComponent(pass));
+    if(data.ok && !Array.isArray(data.payments)) throw new Error('ระบบกลางส่งประวัติการชำระไม่ครบถ้วน');
     syncStatus.syncing = false;
     if(!data.ok){
       syncStatus.online = false;
@@ -402,7 +420,7 @@ async function syncFromServer(){
   }catch(err){
     syncStatus.syncing = false;
     syncStatus.online = false;
-    syncStatus.error = 'เชื่อมต่อไม่ได้ (ตรวจสอบอินเทอร์เน็ต)';
+    syncStatus.error = err.message || 'เชื่อมต่อระบบกลางไม่ได้';
     return false;
   }
 }
@@ -412,24 +430,23 @@ async function importSeedData(){
   const pass = getSavedPass();
   if(!pass) return;
   showToast('กำลังนำเข้าข้อมูล...');
-  const payload = SEED_PAYMENTS.map(p => Object.assign({}, p, { id: genId() }));
+  const payload = SEED_PAYMENTS.map(p => Object.assign({}, p, { id: genId(), source:'legacy-import' }));
   try{
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const data = await requestServer(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(versionedRequest({ action: 'bulkImport', pass: pass, payments: payload }))
     });
-    const data = await res.json();
     if(data.ok){
       absorbServerVersion(data);
-      showToast(`นำเข้าข้อมูลสำเร็จ ✓ (${data.count} รายการ)`);
+      showToast(`นำเข้าข้อมูลสำเร็จ ✓ (${data.count} รายการ)${data.warnings?.length?' · ประวัติเดิมมีช่องว่างที่ควรตรวจสอบ':''}`);
       await syncFromServer();
       render();
     } else if(!(await handleServerConflict(data))){
       showToast(data.error || 'นำเข้าไม่สำเร็จ');
     }
   }catch(err){
-    showToast('เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง');
+    showToast(err.message || 'เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง');
   }
 }
 
@@ -471,8 +488,8 @@ async function handleGateSubmit(pass){
   }
   renderGate('', true);
   try{
-    const res = await fetch(APPS_SCRIPT_URL + '?action=list&pass=' + encodeURIComponent(pass));
-    const data = await res.json();
+    const data = await requestServer(APPS_SCRIPT_URL + '?action=list&pass=' + encodeURIComponent(pass));
+    if(data.ok && !Array.isArray(data.payments)) throw new Error('ระบบกลางส่งประวัติการชำระไม่ครบถ้วน');
     if(!data.ok){
       renderGate(data.error || 'รหัสผ่านไม่ถูกต้อง');
       return;
@@ -483,6 +500,7 @@ async function handleGateSubmit(pass){
     syncStatus.error = null;
     syncStatus.lastSync = new Date();
     absorbServerVersion(data);
+    if(data.settings && Number.isFinite(Number(data.settings.currentMRR))) state.currentMRR=Number(data.settings.currentMRR);
     if(data.payments.length === 0){
       state.needsImport = true;
     } else {
@@ -493,7 +511,7 @@ async function handleGateSubmit(pass){
     saveState();
     render();
   }catch(err){
-    renderGate('เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตหรือลิงก์ Apps Script');
+    renderGate(escapeHtml(err.message || 'เชื่อมต่อระบบกลางไม่ได้'));
   }
 }
 
@@ -1581,6 +1599,8 @@ async function storeReceiptForPayment(paymentId,file){
   receiptAttachmentMeta.set(String(paymentId),{
     paymentId:String(paymentId),name:record.name,type:record.type,size:record.size,createdAt:record.createdAt
   });
+  const items=[...receiptAttachmentMeta.values()];
+  receiptBackupStats={count:items.length,totalBytes:items.reduce((sum,item)=>sum+Number(item.size||0),0)};
   return record;
 }
 
@@ -1680,12 +1700,11 @@ async function saveMRRSettings(){
   if(isConfigured()&&pass){
     showToast('กำลังบันทึก MRR ให้ทุกเครื่อง...');
     try{
-      const response=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(versionedRequest({action:'saveSettings',pass,settings:{currentMRR:value}}))});
-      const data=await response.json();
+      const data=await requestServer(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(versionedRequest({action:'saveSettings',pass,settings:{currentMRR:value}}))});
       if(!data.ok){ if(await handleServerConflict(data)) return; showToast(data.error||'บันทึก MRR ไม่สำเร็จ'); return; }
       absorbServerVersion(data);
       state.currentMRR=Number(data.settings.currentMRR);
-    }catch(error){ showToast('ไม่มีอินเทอร์เน็ต จึงยังบันทึก MRR ให้ทุกเครื่องไม่ได้'); return; }
+    }catch(error){ showToast(error.message); return; }
   }else state.currentMRR=value;
   saveState(); render(); showToast('บันทึกสมมติฐาน MRR แล้ว ✓');
 }
@@ -1868,10 +1887,10 @@ function render(){
       ? 'กำลังซิงค์...'
       : (syncStatus.online
           ? `ซิงค์ล่าสุด ${syncStatus.lastSync ? syncStatus.lastSync.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : ''}`
-          : 'ออฟไลน์ — แสดงข้อมูลล่าสุดที่มี');
+          : (syncStatus.error || 'กำลังเชื่อมต่อระบบกลาง — แสดงข้อมูลล่าสุดที่มี'));
     syncBannerHtml = `
     <div class="sync-banner ${syncStatus.online ? '' : 'offline'}">
-      <span><span class="sb-dot"></span>${statusText}</span>
+      <span><span class="sb-dot"></span>${escapeHtml(statusText)}</span>
       <span class="sync-actions">
         <button onclick="manualSync()">↻ ซิงค์</button>
         <button class="font-quick" onclick="cycleFontSize()" aria-label="เปลี่ยนขนาดตัวอักษร">ก ก+</button>
@@ -2043,24 +2062,33 @@ function render(){
 let pendingReceiptData = null;
 const TESSERACT_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
 const PDFJS_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const dynamicScriptLoads=new Map();
 
 function loadScriptOnce(src, globalName){
   if(globalName && window[globalName]) return Promise.resolve(window[globalName]);
-  return new Promise((resolve,reject)=>{
-    const existing=document.querySelector(`script[data-dynamic-src="${src}"]`);
-    if(existing){
-      existing.addEventListener('load',()=>resolve(globalName?window[globalName]:true),{once:true});
-      existing.addEventListener('error',reject,{once:true});
-      return;
-    }
+  if(dynamicScriptLoads.has(src)) return dynamicScriptLoads.get(src);
+  const loading=new Promise((resolve,reject)=>{
     const script=document.createElement('script');
+    const timer=setTimeout(()=>fail(),30000);
+    function fail(){
+      clearTimeout(timer);
+      script.remove();
+      dynamicScriptLoads.delete(src);
+      reject(new Error('โหลดตัวอ่านใบเสร็จไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วเลือกไฟล์อีกครั้ง'));
+    }
     script.src=src;
     script.async=true;
     script.dataset.dynamicSrc=src;
-    script.onload=()=>resolve(globalName?window[globalName]:true);
-    script.onerror=()=>reject(new Error('โหลดตัวอ่านรูปภาพไม่สำเร็จ'));
+    script.onload=()=>{
+      if(globalName&&!window[globalName]){ fail(); return; }
+      clearTimeout(timer);
+      resolve(globalName?window[globalName]:true);
+    };
+    script.onerror=fail;
     document.head.appendChild(script);
   });
+  dynamicScriptLoads.set(src,loading);
+  return loading;
 }
 
 function setReceiptReadProgress(btn,label,progress){
@@ -2152,6 +2180,7 @@ async function handleReceiptFile(event){
   const isPdf=file.type==='application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if(!isImage && !isPdf){ showToast('รองรับไฟล์ PDF, JPG, PNG และ WebP'); return; }
   pendingReceiptFile=file;
+  pendingReceiptPaymentId=null;
 
   const btn = document.getElementById('receipt-upload-btn');
   if(btn){ btn.disabled = true; btn.textContent = 'กำลังอ่าน...'; }
@@ -2199,7 +2228,7 @@ function showReceiptPreview(parsed){
   const warnBox = document.getElementById('receipt-warnings');
 
   if(parsed.warnings.length > 0){
-    warnBox.innerHTML = `<div class="rm-warning">⚠️ ${parsed.warnings.join('<br>⚠️ ')}<br><br>ตรวจสอบและแก้ตัวเลขในช่องด้านล่างให้ถูกต้องก่อนกดยืนยัน</div>`;
+    warnBox.innerHTML = `<div class="rm-warning">⚠️ ${parsed.warnings.map(escapeHtml).join('<br>⚠️ ')}<br><br>ตรวจสอบและแก้ตัวเลขในช่องด้านล่างให้ถูกต้องก่อนกดยืนยัน</div>`;
   } else {
     warnBox.innerHTML = '';
   }
@@ -2219,13 +2248,30 @@ function showReceiptPreview(parsed){
     cancelBtn.removeEventListener('click', onCancel);
     confirmBtn.removeEventListener('click', onConfirm);
   }
-  function onCancel(){ close(); pendingReceiptData = null; pendingReceiptFile=null; }
+  function onCancel(){ close(); pendingReceiptData = null; pendingReceiptFile=null; pendingReceiptPaymentId=null; }
   function onConfirm(){ close(); confirmReceiptImport(); }
   cancelBtn.addEventListener('click', onCancel);
   confirmBtn.addEventListener('click', onConfirm);
 }
 
 async function confirmReceiptImport(){
+  if(receiptImportBusy) return;
+  receiptImportBusy=true;
+  try{ await saveReceiptImport(); }
+  finally{ receiptImportBusy=false; }
+}
+
+function retryReceiptImport(message){
+  showReceiptPreview({ok:true,warnings:[message],fields:{
+    date:document.getElementById('rm-date').value,
+    amount:parseFloat(document.getElementById('rm-amount').value),
+    principalPaid:parseFloat(document.getElementById('rm-principal').value),
+    interest:parseFloat(document.getElementById('rm-interest').value)||0,
+    balanceAfter:parseFloat(document.getElementById('rm-balance').value)
+  }});
+}
+
+async function saveReceiptImport(){
   const date = document.getElementById('rm-date').value;
   const principalPaid = parseFloat(document.getElementById('rm-principal').value);
   const interest = parseFloat(document.getElementById('rm-interest').value) || 0;
@@ -2233,22 +2279,34 @@ async function confirmReceiptImport(){
   const balanceAfter = parseFloat(document.getElementById('rm-balance').value);
 
   if(!date || isNaN(principalPaid) || isNaN(amount) || isNaN(balanceAfter)){
-    pendingReceiptFile=null;
-    showToast('กรุณากรอกข้อมูลให้ครบถ้วนก่อนยืนยัน');
+    retryReceiptImport('กรุณากรอกข้อมูลให้ครบถ้วนก่อนยืนยัน');
     return;
   }
 
   // กันบันทึกซ้ำ: เช็ครายการที่มีวันที่และยอดคงเหลือตรงกันเป๊ะอยู่แล้วในระบบ
   const dup = state.payments.find(p => p.date === date && Math.abs(p.balanceAfter - balanceAfter) < 0.01);
   if(dup){
+    const matches=['amount','principalPaid','interest'].every(key=>Math.abs(Number(dup[key])-({amount,principalPaid,interest})[key])<0.01);
+    if(!matches){
+      retryReceiptImport('มีรายการวันที่และยอดคงเหลือนี้แล้ว แต่ยอดแยกต่างกัน กรุณาตรวจสอบประวัติก่อน');
+      return;
+    }
+    const hadFile=!!pendingReceiptFile;
+    if(pendingReceiptFile){
+      try{ await storeReceiptForPayment(receiptKeyForPayment(dup),pendingReceiptFile); }
+      catch(error){ retryReceiptImport('มีรายการแล้ว แต่เก็บไฟล์ใบเสร็จไม่สำเร็จ กรุณาลองอีกครั้ง'); return; }
+    }
     pendingReceiptFile=null;
-    showToast('ดูเหมือนมีรายการวันนี้+ยอดนี้อยู่แล้ว — ไม่ได้บันทึกซ้ำ');
+    pendingReceiptPaymentId=null;
+    pendingReceiptData=null;
+    render();
+    showToast(`มีรายการนี้แล้ว ✓ ไม่เพิ่มซ้ำ${hadFile?' · แนบไฟล์ใบเสร็จในเครื่องนี้แล้ว':''}`);
     return;
   }
 
   // ใบเสร็จจริง = ข้อมูลล็อก เหมือนกับ SEED_PAYMENTS (ห้ามลบ ป้องกันข้อมูลทางการเงินจริงถูกแก้/ลบโดยไม่ตั้งใจ)
   const newPayment = {
-    id: genId(),
+    id: pendingReceiptPaymentId || (pendingReceiptPaymentId=genId()),
     date: date,
     amount: Math.round(amount*100)/100,
     interest: Math.round(interest*100)/100,
@@ -2263,16 +2321,18 @@ async function confirmReceiptImport(){
   if(isConfigured() && pass){
     showToast('กำลังบันทึก...');
     try{
-      const res = await fetch(APPS_SCRIPT_URL, {
+      if(syncPromise) await syncPromise;
+      const data = await requestServer(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(versionedRequest({ action: 'add', pass: pass, payment: newPayment }))
       });
-      const data = await res.json();
       if(!data.ok){
-        if(await handleServerConflict(data)){ pendingReceiptFile=null; return; }
-        pendingReceiptFile=null;
-        showToast(data.error || 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+        if(await handleServerConflict(data)){
+          retryReceiptImport('โหลดข้อมูลล่าสุดแล้ว กรุณาตรวจสอบและกดยืนยันอีกครั้ง');
+          return;
+        }
+        retryReceiptImport(data.error || 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
         return;
       }
       absorbServerVersion(data);
@@ -2281,29 +2341,37 @@ async function confirmReceiptImport(){
       syncStatus.error = null;
       syncStatus.lastSync = new Date();
     }catch(err){
-      pendingReceiptFile=null;
-      showToast('ไม่มีอินเทอร์เน็ต บันทึกไม่สำเร็จ ลองใหม่เมื่อมีเน็ต');
+      syncStatus.online=false;
+      syncStatus.error=err.message;
+      retryReceiptImport(err.message || 'เชื่อมต่อระบบกลางไม่ได้ ลองใหม่อีกครั้ง');
       return;
     }
   }
 
   saveAutoSnapshot('ก่อนนำเข้าใบเสร็จ');
-  state.payments.push(newPayment);
+  if(!state.payments.some(p=>p.id===newPayment.id)) state.payments.push(newPayment);
   recomputeFromPayments(state.payments); // จัดเรียงตามวันที่ใหม่ เผื่อใบเสร็จนี้เป็นรายการเก่าที่เติมช่องว่างย้อนหลัง
 
   await saveState();
   let receiptSaved=false;
+  let receiptArchiveError=null;
   if(pendingReceiptFile){
     try{
       await storeReceiptForPayment(receiptKeyForPayment(newPayment),pendingReceiptFile);
       receiptSaved=true;
     }catch(error){
       console.warn('Receipt archive save failed:',error);
+      receiptArchiveError=error;
     }
   }
   render();
+  if(receiptArchiveError){
+    retryReceiptImport('บันทึกยอดชำระแล้ว แต่เก็บไฟล์ในเครื่องไม่สำเร็จ: '+receiptArchiveError.message+' · ยืนยันอีกครั้งเพื่อลองแนบไฟล์ โดยไม่เพิ่มยอดซ้ำ');
+    return;
+  }
   pendingReceiptData = null;
   pendingReceiptFile=null;
+  pendingReceiptPaymentId=null;
   const syncText=isConfigured()&&pass?' · ซิงค์รายการแล้ว':'';
   showToast(`นำเข้าใบเสร็จเรียบร้อย ✓${receiptSaved?' · เก็บไฟล์ในเครื่องนี้':''}${syncText}`);
 }
@@ -2348,12 +2416,11 @@ async function submitPayment(){
     if(submitBtn) submitBtn.disabled = true;
     showToast('กำลังบันทึก...');
     try{
-      const res = await fetch(APPS_SCRIPT_URL, {
+      const data = await requestServer(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(versionedRequest({ action: 'add', pass: pass, payment: newPayment }))
       });
-      const data = await res.json();
       if(!data.ok){
         if(submitBtn) submitBtn.disabled = false;
         if(await handleServerConflict(data)) return;
@@ -2368,7 +2435,8 @@ async function submitPayment(){
     }catch(err){
       if(submitBtn) submitBtn.disabled = false;
       syncStatus.online = false;
-      showToast('ไม่มีอินเทอร์เน็ต บันทึกไม่สำเร็จ ลองใหม่เมื่อมีเน็ต');
+      syncStatus.error = err.message;
+      showToast(err.message);
       return;
     }
     if(submitBtn) submitBtn.disabled = false;
@@ -2422,12 +2490,11 @@ async function doDeleteSynced(idx){
     return;
   }
   try{
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const data = await requestServer(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(versionedRequest({ action: 'delete', pass: pass, id: target.id }))
     });
-    const data = await res.json();
     if(!data.ok){
       if(await handleServerConflict(data)) return;
       showToast(data.error || 'ลบไม่สำเร็จ');
@@ -2435,7 +2502,7 @@ async function doDeleteSynced(idx){
     }
     absorbServerVersion(data);
   }catch(err){
-    showToast('ไม่มีอินเทอร์เน็ต ลบไม่สำเร็จ');
+    showToast(err.message);
     return;
   }
   saveAutoSnapshot('ก่อนลบรายการล่าสุด');
@@ -2507,6 +2574,7 @@ let lastAutoSyncAt = 0;
 const AUTO_SYNC_MIN_GAP_MS = 15000; // กันซิงค์รัวเกินไปถ้าสลับแอพไปมาถี่ๆ
 
 async function autoResyncIfNeeded(){
+  if(receiptImportBusy || document.getElementById('receipt-overlay').classList.contains('show')) return;
   if(!isConfigured() || !getSavedPass()) return;
   const now = Date.now();
   if(now - lastAutoSyncAt < AUTO_SYNC_MIN_GAP_MS) return;
@@ -2538,6 +2606,7 @@ function setupAutoResync(){
   });
   // เผื่อกรณีกลับมาโฟกัสหน้าต่าง/แอพโดยตรง
   window.addEventListener('focus', () => autoResyncIfNeeded());
+  window.addEventListener('online', () => { lastAutoSyncAt=0; autoResyncIfNeeded(); });
 }
 
 (async function init(){
@@ -2563,6 +2632,6 @@ function setupAutoResync(){
   const ok = await syncFromServer();
   render();
   if(!ok){
-    showToast('ออฟไลน์ — แสดงข้อมูลล่าสุดที่มีในเครื่อง');
+    showToast(syncStatus.error || 'เชื่อมต่อไม่ได้ — แสดงข้อมูลล่าสุดที่มีในเครื่อง');
   }
 })();

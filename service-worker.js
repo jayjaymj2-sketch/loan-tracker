@@ -2,13 +2,14 @@
 // หน้าที่: เก็บไฟล์หน้าแอพ (HTML/manifest/ไอคอน) ไว้ใช้ออฟไลน์ได้
 // ข้อมูลจริง (จาก Google Sheets/Apps Script) จะไม่ถูก cache เพราะต้องสดเสมอ
 
-const CACHE_NAME = 'loan-tracker-cache-v26'; // เพิ่มเลขนี้ทุกครั้งที่อัปเดตไฟล์ เพื่อบังคับเครื่องผู้ใช้ดึงเวอร์ชันใหม่
+const CACHE_NAME = 'loan-tracker-cache-v27'; // เพิ่มเลขนี้ทุกครั้งที่อัปเดตไฟล์ เพื่อบังคับเครื่องผู้ใช้ดึงเวอร์ชันใหม่
 const ASSETS = [
   './loan_tracker.html',
   './styles.css?v=24',
-  './js/app.js?v=26',
+  './js/app.js?v=27',
   './js/receipt-parser.js',
-  './js/sync-version.js',
+  './js/sync-version.js?v=27',
+  './js/connection.js?v=27',
   './js/loan-analytics.js?v=24',
   './js/receipt-store.js?v=24',
   './js/encrypted-backup.js?v=24',
@@ -20,10 +21,7 @@ const ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    Promise.all([
-      caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).catch(() => {}),
-      self.skipWaiting()
-    ])
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
   );
 });
 
@@ -34,10 +32,9 @@ self.addEventListener('message',event=>{
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+      Promise.all(keys.filter((k) => k.startsWith('loan-tracker-cache-') && k !== CACHE_NAME).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim(); // เข้าควบคุมหน้าที่เปิดค้างอยู่ทันที ไม่ต้องรอโหลดใหม่
 });
 
 self.addEventListener('fetch', (event) => {
@@ -49,21 +46,22 @@ self.addEventListener('fetch', (event) => {
   }
 
   // เฉพาะ GET request เท่านั้นที่ cache ได้
-  if (event.request.method !== 'GET') return;
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
   // สำหรับการนำทางไปหน้า HTML (เช่น เปิดแอพ/รีเฟรช) ให้ข้าม HTTP cache ของเบราว์เซอร์ไปเลย
   // เพื่อให้ได้โค้ดฉบับล่าสุดจริงๆ ทุกครั้งที่มีอินเทอร์เน็ต (ไม่ใช่แค่ข้าม cache ของ Service Worker)
   const isNavigation = event.request.mode === 'navigate' || url.pathname.endsWith('.html');
-  const isAppAsset = url.origin === self.location.origin;
-  const fetchOptions = (isNavigation || isAppAsset) ? { cache: 'no-store' } : {};
+  const fetchOptions = { cache: 'no-store' };
+  const cachedResponse = () => caches.open(CACHE_NAME).then(cache => cache.match(event.request,{ignoreSearch:isNavigation}));
 
   event.respondWith(
     fetch(event.request, fetchOptions)
-      .then((res) => {
+      .then(async (res) => {
+        if(!res.ok) return await cachedResponse() || res;
         const resClone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+        event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone)));
         return res;
       })
-      .catch(() => caches.match(event.request))
+      .catch(async () => await cachedResponse() || new Response('ไม่สามารถโหลดไฟล์ได้ กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่',{status:503,headers:{'Content-Type':'text/plain;charset=utf-8'}}))
   );
 });

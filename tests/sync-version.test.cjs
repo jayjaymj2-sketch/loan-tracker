@@ -6,6 +6,8 @@ test('normalizes server versions', () => {
   assert.equal(normalizeVersion('12'), 12);
   assert.equal(normalizeVersion(-1), null);
   assert.equal(normalizeVersion('abc'), null);
+  for(const value of [null,undefined,'','  ',true,false]) assert.equal(normalizeVersion(value),null);
+  assert.deepEqual(withExpectedVersion({action:'add'},null),{action:'add'});
 });
 
 test('adds expected version without mutating payload', () => {

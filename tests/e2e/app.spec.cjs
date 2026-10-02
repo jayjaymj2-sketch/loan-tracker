@@ -2,6 +2,7 @@ const {test,expect}=require('@playwright/test');
 const path=require('node:path');
 
 test.beforeEach(async({page})=>{
+  await page.clock.install({time:new Date('2026-10-02T12:00:00+07:00')});
   await page.goto('/loan_tracker.html?qa=1');
   await expect(page.getByRole('heading',{name:'ภาพรวมสินเชื่อ'})).toBeVisible();
   await expect(page.locator('.reminder-banner')).toHaveCount(0);
@@ -75,7 +76,7 @@ test('principal and interest chart opens details for paid and empty months',asyn
   await novemberBar.click();
   const novemberSplitTotal=await novemberBar.locator('.split-chart-stack > span').evaluateAll(parts=>parts.reduce((sum,part)=>sum+parseFloat(part.style.height||'0'),0));
   expect(novemberSplitTotal).toBeCloseTo(100,5);
-  await expect(chart.locator('#principal-interest-detail')).toContainText('ข้อมูลเดิมแยกเงินต้นและดอกเบี้ยรวมต่ำกว่ายอดชำระ');
+  await expect(chart.locator('#principal-interest-detail')).not.toContainText('ข้อมูลเดิมแยกเงินต้นและดอกเบี้ยรวมต่ำกว่ายอดชำระ');
 
   const emptyBar=chart.locator('.split-chart-column[data-amount="0"]').last();
   const emptyMonth=await emptyBar.getAttribute('data-month');

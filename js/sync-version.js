@@ -6,6 +6,7 @@
   'use strict';
 
   function normalizeVersion(value){
+    if(value == null || String(value).trim() === '' || typeof value === 'boolean') return null;
     const version = Number(value);
     return Number.isInteger(version) && version >= 0 ? version : null;
   }
